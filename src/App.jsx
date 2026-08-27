@@ -9,12 +9,27 @@ import Navbar from './components/Navbar';
 import './styles/App.css';
 
 function PrivateRoute({ children }) {
-    const { currentUser } = useAuth();
+    const { currentUser, loading } = useAuth();
+    
+    if (loading) {
+        return <div className="loading-screen">Loading...</div>;
+    }
+    
     return currentUser ? children : <Navigate to="/login" />;
 }
 
 function AppRoutes() {
-    const { currentUser } = useAuth();
+    const { currentUser, loading } = useAuth();
+
+    if (loading) {
+        return (
+            <div className="app-container">
+                <div className="loading-screen">
+                    <h2>🌿 Loading Pfukaloop...</h2>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="app-container">

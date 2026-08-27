@@ -1,82 +1,198 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
+import { 
+    auth, 
+    db,
+    createUserWithEmailAndPassword,
+    signInWithEmailAndPassword,
+    signOut,
+    onAuthStateChanged,
+    updateProfile,
+    doc,
+    setDoc,
+    getDoc,
+    updateDoc,
+    serverTimestamp
+} from '../firebase/config';
 
 const AuthContext = createContext();
 
-// Mock users database
-const MOCK_USERS = [
-    { id: 1, name: 'Tourist Tanya', email: 'tourist@pfukaloop.com', password: 'pass123', role: 'tourist' },
-    { id: 2, name: 'Lodge Lindi', email: 'lodge@pfukaloop.com', password: 'pass123', role: 'provider' },
-    { id: 3, name: 'Sorter Sipho', email: 'sorter@pfukaloop.com', password: 'pass123', role: 'waste_sorter' },
-    { id: 4, name: 'Monitor Musa', email: 'monitor@pfukaloop.com', password: 'pass123', role: 'monitor' },
-    { id: 5, name: 'Admin Aphiwe', email: 'admin@pfukaloop.com', password: 'pass123', role: 'admin' },
-];
-
 export function AuthProvider({ children }) {
     const [currentUser, setCurrentUser] = useState(null);
-    const [users, setUsers] = useState(MOCK_USERS);
+    const [userData, setUserData] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
 
+    // Listen for auth state changes
     useEffect(() => {
-        const saved = localStorage.getItem('pfukaloop_user');
-        if (saved) {
+        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+            setLoading(true);
             try {
-                const parsed = JSON.parse(saved);
-                const found = users.find(u => u.id === parsed.id);
-                if (found) {
-                    setCurrentUser(found);
+                if (user) {
+                    setCurrentUser(user);
+                    // Fetch user data from Firestore
+                    const userDocRef = doc(db, 'users', user.uid);
+                    const userDoc = await getDoc(userDocRef);
+                    
+                    if (userDoc.exists()) {
+                        setUserData(userDoc.data());
+                    } else {
+                        // Create user document if it doesn't exist
+                        const newUserData = {
+                            uid: user.uid,
+                            email: user.email,
+                            name: user.displayName || user.email?.split('@')[0] || 'User',
+                            role: 'tourist',
+                            createdAt: serverTimestamp(),
+                            updatedAt: serverTimestamp(),
+                            bookings: [],
+                            listings: [],
+                            earnings: 0,
+                            wasteLogs: [],
+                            sightings: [],
+                            profilePicture: null,
+                            phoneNumber: null,
+                            location: null,
+                            bio: null
+                        };
+                        await setDoc(userDocRef, newUserData);
+                        setUserData(newUserData);
+                    }
+                } else {
+                    setCurrentUser(null);
+                    setUserData(null);
                 }
-            } catch (e) {
-                console.error('Error loading user:', e);
+            } catch (error) {
+                console.error('Error fetching user data:', error);
+                setError(error.message);
+            } finally {
+                setLoading(false);
             }
-        }
-        setLoading(false);
+        });
+
+        return unsubscribe;
     }, []);
 
-    const login = (email, password) => {
-        const user = users.find(u => u.email === email && u.password === password);
-        if (user) {
-            setCurrentUser(user);
-            localStorage.setItem('pfukaloop_user', JSON.stringify(user));
-            return { success: true, user };
+    // Register function
+    const register = async (name, email, password, role = 'tourist') => {
+        try {
+            setError(null);
+            // Create user with email and password
+            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            const user = userCredential.user;
+
+            // Update display name
+            await updateProfile(user, { displayName: name });
+
+            // Create user document in Firestore
+            const userData = {
+                uid: user.uid,
+                email: user.email,
+                name: name,
+                role: role,
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp(),
+                bookings: [],
+                listings: [],
+                earnings: 0,
+                wasteLogs: [],
+                sightings: [],
+                profilePicture: null,
+                phoneNumber: null,
+                location: null,
+                bio: null
+            };
+
+            await setDoc(doc(db, 'users', user.uid), userData);
+            setUserData(userData);
+
+            return { success: true, user: { ...user, ...userData } };
+        } catch (error) {
+            console.error('Registration error:', error);
+            setError(error.message);
+            return { success: false, error: error.message };
         }
-        return { success: false, error: 'Invalid email or password' };
     };
 
-    const register = (name, email, password, role) => {
-        const exists = users.find(u => u.email === email);
-        if (exists) {
-            return { success: false, error: 'Email already registered' };
+    // Login function
+    const login = async (email, password) => {
+        try {
+            setError(null);
+            const userCredential = await signInWithEmailAndPassword(auth, email, password);
+            
+            // Fetch user data from Firestore
+            const userDocRef = doc(db, 'users', userCredential.user.uid);
+            const userDoc = await getDoc(userDocRef);
+            const userData = userDoc.exists() ? userDoc.data() : null;
+            
+            return { 
+                success: true, 
+                user: { ...userCredential.user, ...userData } 
+            };
+        } catch (error) {
+            console.error('Login error:', error);
+            setError(error.message);
+            return { success: false, error: error.message };
         }
-        const newUser = {
-            id: users.length + 1,
-            name,
-            email,
-            password,
-            role,
-        };
-        const updatedUsers = [...users, newUser];
-        setUsers(updatedUsers);
-        setCurrentUser(newUser);
-        localStorage.setItem('pfukaloop_user', JSON.stringify(newUser));
-        return { success: true, user: newUser };
     };
 
-    const logout = () => {
-        setCurrentUser(null);
-        localStorage.removeItem('pfukaloop_user');
+    // Logout function
+    const logout = async () => {
+        try {
+            setError(null);
+            await signOut(auth);
+            setCurrentUser(null);
+            setUserData(null);
+            return { success: true };
+        } catch (error) {
+            console.error('Logout error:', error);
+            setError(error.message);
+            return { success: false, error: error.message };
+        }
+    };
+
+    // Update user data function
+    const updateUserData = async (data) => {
+        try {
+            if (!currentUser) throw new Error('No user logged in');
+            
+            const userDocRef = doc(db, 'users', currentUser.uid);
+            await updateDoc(userDocRef, {
+                ...data,
+                updatedAt: serverTimestamp()
+            });
+            
+            setUserData(prev => ({ ...prev, ...data }));
+            return { success: true };
+        } catch (error) {
+            console.error('Update user data error:', error);
+            setError(error.message);
+            return { success: false, error: error.message };
+        }
     };
 
     const value = {
         currentUser,
-        login,
-        register,
-        logout,
+        userData,
         loading,
+        error,
+        register,
+        login,
+        logout,
+        updateUserData,
+        setError
     };
 
-    return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+    return (
+        <AuthContext.Provider value={value}>
+            {children}
+        </AuthContext.Provider>
+    );
 }
 
 export function useAuth() {
-    return useContext(AuthContext);
+    const context = useContext(AuthContext);
+    if (!context) {
+        throw new Error('useAuth must be used within an AuthProvider');
+    }
+    return context;
 }

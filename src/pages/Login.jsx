@@ -7,19 +7,30 @@ import './Auth.css';
 function Login() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [loading, setLoading] = useState(false);
     const [toast, setToast] = useState(null);
     const { login } = useAuth();
     const navigate = useNavigate();
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        const result = login(email, password);
+        setLoading(true);
+        
+        const result = await login(email, password);
+        
         if (result.success) {
-            setToast({ message: `Welcome back, ${result.user.name}!`, type: 'success' });
+            setToast({ 
+                message: `Welcome back, ${result.user.name || 'User'}!`, 
+                type: 'success' 
+            });
             setTimeout(() => navigate('/dashboard'), 500);
         } else {
-            setToast({ message: result.error, type: 'error' });
+            setToast({ 
+                message: result.error || 'Login failed. Please try again.', 
+                type: 'error' 
+            });
         }
+        setLoading(false);
     };
 
     return (
@@ -38,6 +49,7 @@ function Login() {
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             required
+                            disabled={loading}
                         />
                     </div>
                     <div className="form-group">
@@ -48,19 +60,20 @@ function Login() {
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             required
+                            disabled={loading}
                         />
                     </div>
-                    <button type="submit" className="submit-btn">
-                        Sign In
+                    <button type="submit" className="submit-btn" disabled={loading}>
+                        {loading ? 'Signing in...' : 'Sign In'}
                     </button>
                 </form>
                 <div className="form-footer">
                     Don't have an account? <Link to="/register">Sign up</Link>
                 </div>
                 <div className="demo-hint">
-                    <strong>Demo accounts:</strong> any email + pass123
-                    <br />
-                    <small>tourist@pfukaloop.com / pass123</small>
+                    <strong>Demo accounts:</strong><br />
+                    <small>tourist@pfukaloop.com / pass123</small><br />
+                    <small>lodge@pfukaloop.com / pass123</small>
                 </div>
             </div>
             {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}

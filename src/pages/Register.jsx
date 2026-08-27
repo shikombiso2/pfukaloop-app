@@ -9,23 +9,40 @@ function Register() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [role, setRole] = useState('tourist');
+    const [loading, setLoading] = useState(false);
     const [toast, setToast] = useState(null);
     const { register } = useAuth();
     const navigate = useNavigate();
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
+        
         if (!name || !email || !password) {
             setToast({ message: 'Please fill in all fields.', type: 'error' });
             return;
         }
-        const result = register(name, email, password, role);
+
+        if (password.length < 6) {
+            setToast({ message: 'Password must be at least 6 characters.', type: 'error' });
+            return;
+        }
+
+        setLoading(true);
+        const result = await register(name, email, password, role);
+        
         if (result.success) {
-            setToast({ message: `Account created! Welcome ${name}`, type: 'success' });
+            setToast({ 
+                message: `Account created! Welcome ${name}`, 
+                type: 'success' 
+            });
             setTimeout(() => navigate('/dashboard'), 500);
         } else {
-            setToast({ message: result.error, type: 'error' });
+            setToast({ 
+                message: result.error || 'Registration failed. Please try again.', 
+                type: 'error' 
+            });
         }
+        setLoading(false);
     };
 
     return (
@@ -44,6 +61,7 @@ function Register() {
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             required
+                            disabled={loading}
                         />
                     </div>
                     <div className="form-group">
@@ -54,21 +72,27 @@ function Register() {
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             required
+                            disabled={loading}
                         />
                     </div>
                     <div className="form-group">
                         <label>Password</label>
                         <input
                             type="password"
-                            placeholder="••••••••"
+                            placeholder="At least 6 characters"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             required
+                            disabled={loading}
                         />
                     </div>
                     <div className="form-group">
                         <label>I am a...</label>
-                        <select value={role} onChange={(e) => setRole(e.target.value)}>
+                        <select 
+                            value={role} 
+                            onChange={(e) => setRole(e.target.value)}
+                            disabled={loading}
+                        >
                             <option value="tourist">🌍 Tourist / Traveler</option>
                             <option value="provider">🏡 Lodge / Guide / Seller</option>
                             <option value="waste_sorter">♻️ Waste Sorter</option>
@@ -76,8 +100,8 @@ function Register() {
                             <option value="admin">🛠️ Admin / Partner</option>
                         </select>
                     </div>
-                    <button type="submit" className="submit-btn">
-                        Create Account
+                    <button type="submit" className="submit-btn" disabled={loading}>
+                        {loading ? 'Creating Account...' : 'Create Account'}
                     </button>
                 </form>
                 <div className="form-footer">
