@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
+import React, { useState, useEffect, useCallback } from 'react';
 import { getSightings, createSighting } from '../../services/firebaseServices';
 import Toast from '../Common/Toast';
 import './Dashboard.css';
@@ -16,17 +15,18 @@ function MonitorDashboard({ user }) {
         images: []
     });
 
-    useEffect(() => {
-        loadSightings();
-    }, []);
-
-    const loadSightings = async () => {
+    // Define loadSightings with useCallback
+    const loadSightings = useCallback(async () => {
         const result = await getSightings({ monitorId: user.uid });
         if (result.success) {
             setSightings(result.data);
         }
         setLoading(false);
-    };
+    }, [user.uid]);
+
+    useEffect(() => {
+        loadSightings();
+    }, [loadSightings]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();

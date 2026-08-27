@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { getWasteLogs, createWasteLog } from '../../services/firebaseServices';
 import Toast from '../Common/Toast';
@@ -21,18 +21,19 @@ function WasteDashboard() {
         destination: 'compost'
     });
 
-    useEffect(() => {
-        loadLogs();
-    }, []);
-
-    const loadLogs = async () => {
+    // Define loadLogs with useCallback
+    const loadLogs = useCallback(async () => {
         const result = await getWasteLogs({ sorterId: userData?.uid });
         if (result.success) {
             setLogs(result.data);
             calculateStats(result.data);
         }
         setLoading(false);
-    };
+    }, [userData?.uid]);
+
+    useEffect(() => {
+        loadLogs();
+    }, [loadLogs]);
 
     const calculateStats = (data) => {
         const byType = {};

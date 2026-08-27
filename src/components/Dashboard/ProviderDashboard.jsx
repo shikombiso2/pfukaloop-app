@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
 import CreateListing from '../Listings/CreateListing';
 import ListingList from '../Listings/ListingList';
 import './Dashboard.css';
@@ -45,7 +44,6 @@ function ProviderDashboard({ user }) {
                 {activeTab === 'bookings' && (
                     <div className="bookings-section">
                         <h3>Your Bookings</h3>
-                        {/* Booking list will be implemented */}
                         <p>Booking management coming soon...</p>
                     </div>
                 )}

@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
-import { getListings, subscribeToCollection } from '../../services/firebaseServices';
+import { getListings } from '../../services/firebaseServices';
 import Toast from '../Common/Toast';
 import './Dashboard.css';
 
@@ -9,7 +8,6 @@ function TouristDashboard({ user }) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [toast, setToast] = useState(null);
-    const [selectedListing, setSelectedListing] = useState(null);
 
     useEffect(() => {
         loadListings();
@@ -19,7 +17,6 @@ function TouristDashboard({ user }) {
         setLoading(true);
         setError(null);
         
-        // Get all listings without filters first
         const result = await getListings({});
         
         if (result.success) {
@@ -27,7 +24,7 @@ function TouristDashboard({ user }) {
         } else {
             console.error('Error loading listings:', result.error);
             if (result.needsIndex) {
-                setError('Please create the required index in Firebase Console. Click the link in the error message.');
+                setError('Please create the required index in Firebase Console.');
                 setToast({ 
                     message: 'Index needed. Please check console for link.', 
                     type: 'error' 
@@ -40,9 +37,7 @@ function TouristDashboard({ user }) {
     };
 
     const handleBook = (listing) => {
-        setSelectedListing(listing);
-        // You can implement booking modal here
-        setToast({ message: 'Booking feature coming soon!', type: 'success' });
+        setToast({ message: `Booking ${listing.title} coming soon!`, type: 'success' });
     };
 
     if (loading) {

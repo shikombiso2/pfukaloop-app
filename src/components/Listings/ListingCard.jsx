@@ -5,7 +5,7 @@ import Toast from '../Common/Toast';
 import './Listing.css';
 
 function ListingCard({ listing, onUpdate }) {
-    const { currentUser, userData } = useAuth();
+    const { currentUser } = useAuth();
     const [loading, setLoading] = useState(false);
     const [toast, setToast] = useState(null);
     const [showBooking, setShowBooking] = useState(false);
