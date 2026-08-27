@@ -46,6 +46,7 @@ function AppRoutes() {
                         </PrivateRoute>
                     }
                 />
+                {/* Add more routes as needed */}
             </Routes>
         </div>
     );

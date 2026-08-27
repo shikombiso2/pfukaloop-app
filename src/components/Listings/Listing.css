@@ -1,0 +1,225 @@
+/* Listing Styles */
+.listing-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 24px;
+    padding: 20px 0;
+}
+
+.listing-card {
+    background: var(--white);
+    border-radius: var(--radius);
+    padding: 24px;
+    box-shadow: var(--shadow);
+    transition: var(--transition);
+    border: 1px solid var(--light);
+    position: relative;
+}
+
+.listing-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+}
+
+.listing-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.category-badge {
+    background: var(--light);
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--primary-dark);
+}
+
+.verified-badge {
+    color: #27ae60;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.unavailable-badge {
+    color: #e74c3c;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.listing-card h3 {
+    color: var(--primary-dark);
+    margin-bottom: 8px;
+    font-size: 20px;
+}
+
+.listing-description {
+    color: #5a7a6a;
+    font-size: 14px;
+    line-height: 1.5;
+    margin-bottom: 16px;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.listing-details {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 16px;
+    padding: 12px 0;
+    border-top: 1px solid var(--light);
+    border-bottom: 1px solid var(--light);
+}
+
+.listing-details span {
+    font-size: 14px;
+    color: #3d5a4d;
+}
+
+.price {
+    font-weight: 700;
+    color: var(--primary) !important;
+    font-size: 18px !important;
+}
+
+.listing-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 14px;
+    color: #5a7a6a;
+    margin-bottom: 16px;
+}
+
+.rating {
+    font-weight: 600;
+    color: var(--primary-dark);
+}
+
+.book-btn {
+    width: 100%;
+    padding: 10px;
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.book-btn:hover {
+    background: var(--primary-dark);
+}
+
+.book-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Booking Form */
+.booking-form {
+    margin-top: 16px;
+    padding: 16px;
+    background: var(--light);
+    border-radius: 8px;
+}
+
+.booking-form h4 {
+    color: var(--primary-dark);
+    margin-bottom: 12px;
+}
+
+.booking-form .form-group {
+    margin-bottom: 12px;
+}
+
+.booking-form .form-group label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--primary-dark);
+}
+
+.booking-form .form-group input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #d8e8dc;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.booking-total {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--primary);
+    margin: 12px 0;
+}
+
+.cancel-btn {
+    width: 100%;
+    padding: 10px;
+    background: #e74c3c;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 8px;
+    transition: var(--transition);
+}
+
+.cancel-btn:hover {
+    background: #c0392b;
+}
+
+/* Create Listing Form */
+.create-listing {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 24px;
+    background: var(--white);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+}
+
+.create-listing h2 {
+    color: var(--primary-dark);
+    margin-bottom: 24px;
+}
+
+.create-listing .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.create-listing textarea {
+    width: 100%;
+    padding: 10px 14px;
+    border: 2px solid #d8e8dc;
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    resize: vertical;
+}
+
+.create-listing textarea:focus {
+    border-color: var(--secondary);
+    outline: none;
+}
+
+@media (max-width: 768px) {
+    .listing-list {
+        grid-template-columns: 1fr;
+    }
+    .create-listing .form-row {
+        grid-template-columns: 1fr;
+    }
+}

@@ -34,14 +34,19 @@ export function AuthProvider({ children }) {
                     const userDoc = await getDoc(userDocRef);
                     
                     if (userDoc.exists()) {
-                        setUserData(userDoc.data());
+                        const data = userDoc.data();
+                        setUserData({
+                            ...data,
+                            uid: user.uid,
+                            email: user.email
+                        });
                     } else {
                         // Create user document if it doesn't exist
                         const newUserData = {
                             uid: user.uid,
                             email: user.email,
                             name: user.displayName || user.email?.split('@')[0] || 'User',
-                            role: 'tourist',
+                            role: 'tourist', // Default role
                             createdAt: serverTimestamp(),
                             updatedAt: serverTimestamp(),
                             bookings: [],
@@ -55,7 +60,11 @@ export function AuthProvider({ children }) {
                             bio: null
                         };
                         await setDoc(userDocRef, newUserData);
-                        setUserData(newUserData);
+                        setUserData({
+                            ...newUserData,
+                            uid: user.uid,
+                            email: user.email
+                        });
                     }
                 } else {
                     setCurrentUser(null);
@@ -83,12 +92,12 @@ export function AuthProvider({ children }) {
             // Update display name
             await updateProfile(user, { displayName: name });
 
-            // Create user document in Firestore
+            // Create user document in Firestore with the selected role
             const userData = {
                 uid: user.uid,
                 email: user.email,
                 name: name,
-                role: role,
+                role: role, // This is the key fix - store the role
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp(),
                 bookings: [],
@@ -103,7 +112,13 @@ export function AuthProvider({ children }) {
             };
 
             await setDoc(doc(db, 'users', user.uid), userData);
-            setUserData(userData);
+            
+            // Set userData with the role
+            setUserData({
+                ...userData,
+                uid: user.uid,
+                email: user.email
+            });
 
             return { success: true, user: { ...user, ...userData } };
         } catch (error) {
@@ -122,12 +137,42 @@ export function AuthProvider({ children }) {
             // Fetch user data from Firestore
             const userDocRef = doc(db, 'users', userCredential.user.uid);
             const userDoc = await getDoc(userDocRef);
-            const userData = userDoc.exists() ? userDoc.data() : null;
             
-            return { 
-                success: true, 
-                user: { ...userCredential.user, ...userData } 
-            };
+            if (userDoc.exists()) {
+                const data = userDoc.data();
+                setUserData({
+                    ...data,
+                    uid: userCredential.user.uid,
+                    email: userCredential.user.email
+                });
+                return { 
+                    success: true, 
+                    user: { 
+                        ...userCredential.user, 
+                        ...data,
+                        uid: userCredential.user.uid,
+                        email: userCredential.user.email
+                    } 
+                };
+            } else {
+                // If no user data exists (shouldn't happen), create it
+                const newUserData = {
+                    uid: userCredential.user.uid,
+                    email: userCredential.user.email,
+                    name: userCredential.user.displayName || 'User',
+                    role: 'tourist',
+                    createdAt: serverTimestamp(),
+                    updatedAt: serverTimestamp(),
+                    bookings: [],
+                    listings: [],
+                    earnings: 0,
+                    wasteLogs: [],
+                    sightings: []
+                };
+                await setDoc(doc(db, 'users', userCredential.user.uid), newUserData);
+                setUserData(newUserData);
+                return { success: true, user: { ...userCredential.user, ...newUserData } };
+            }
         } catch (error) {
             console.error('Login error:', error);
             setError(error.message);

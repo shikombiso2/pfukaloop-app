@@ -28,7 +28,10 @@ import {
     onSnapshot,
     arrayUnion,
     arrayRemove,
-    serverTimestamp
+    serverTimestamp,
+    orderBy,        // Added this
+    increment,      // Added this
+    Timestamp       // Added this (useful for date handling)
 } from 'firebase/firestore';
 import { 
     getStorage, 
@@ -42,19 +45,12 @@ import {
 const firebaseConfig = {
 
   apiKey: "AIzaSyCMsfQLSIpQGm7qwfzTbtgyMSTAZQ5K0k4",
-
   authDomain: "pfukaloop.firebaseapp.com",
-
   projectId: "pfukaloop",
-
   storageBucket: "pfukaloop.firebasestorage.app",
-
   messagingSenderId: "647284542825",
-
   appId: "1:647284542825:web:e6680c043ba105965501f8",
-
   measurementId: "G-2CYL8WWYWB"
-
 };
 
 
@@ -69,8 +65,9 @@ export const storage = getStorage(app);
 // Set persistence to local
 setPersistence(auth, browserLocalPersistence);
 
-// Export functions
+// Export all Firebase functions
 export {
+    // Auth functions
     createUserWithEmailAndPassword,
     signInWithEmailAndPassword,
     signOut,
@@ -80,6 +77,8 @@ export {
     updateEmail,
     updatePassword,
     deleteUser,
+    
+    // Firestore functions
     doc,
     setDoc,
     getDoc,
@@ -94,6 +93,11 @@ export {
     arrayUnion,
     arrayRemove,
     serverTimestamp,
+    orderBy,        // Now exported
+    increment,      // Now exported
+    Timestamp,
+    
+    // Storage functions
     ref,
     uploadBytes,
     getDownloadURL,

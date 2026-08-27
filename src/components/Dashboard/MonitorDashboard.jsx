@@ -1,61 +1,151 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
+import { getSightings, createSighting } from '../../services/firebaseServices';
+import Toast from '../Common/Toast';
 import './Dashboard.css';
 
 function MonitorDashboard({ user }) {
+    const [sightings, setSightings] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [toast, setToast] = useState(null);
+    const [showForm, setShowForm] = useState(false);
+    const [formData, setFormData] = useState({
+        species: '',
+        location: '',
+        description: '',
+        images: []
+    });
+
+    useEffect(() => {
+        loadSightings();
+    }, []);
+
+    const loadSightings = async () => {
+        const result = await getSightings({ monitorId: user.uid });
+        if (result.success) {
+            setSightings(result.data);
+        }
+        setLoading(false);
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (!formData.species || !formData.location) {
+            setToast({ message: 'Please fill in required fields', type: 'error' });
+            return;
+        }
+
+        const result = await createSighting({
+            ...formData,
+            monitorId: user.uid,
+            monitorName: user.name
+        });
+
+        if (result.success) {
+            setToast({ message: 'Sighting reported successfully!', type: 'success' });
+            setFormData({ species: '', location: '', description: '', images: [] });
+            setShowForm(false);
+            loadSightings();
+        } else {
+            setToast({ message: result.error || 'Failed to report sighting', type: 'error' });
+        }
+    };
+
     return (
         <div className="dashboard-container">
             <div className="dashboard-header">
                 <h2>👋 Welcome, {user.name}</h2>
                 <span className="role-badge">Environmental Monitor</span>
             </div>
-            <div className="dashboard-grid">
-                <div className="dashboard-card">
-                    <h4>📷 Camera Traps</h4>
-                    <div className="stat">6</div>
-                    <div className="desc">Active in the field</div>
+
+            <div className="dashboard-content">
+                <div className="section-header">
+                    <h3>📷 Wildlife Sightings</h3>
+                    <button 
+                        className="btn-primary"
+                        onClick={() => setShowForm(!showForm)}
+                    >
+                        {showForm ? 'Cancel' : '+ Report Sighting'}
+                    </button>
                 </div>
-                <div className="dashboard-card">
-                    <h4>🐾 Wildlife Sightings</h4>
-                    <div className="stat">43</div>
-                    <div className="desc">Reported this month</div>
+
+                {showForm && (
+                    <div className="sighting-form">
+                        <h4>Report Wildlife Sighting</h4>
+                        <form onSubmit={handleSubmit}>
+                            <div className="form-group">
+                                <label>Species *</label>
+                                <input
+                                    type="text"
+                                    value={formData.species}
+                                    onChange={(e) => setFormData(prev => ({
+                                        ...prev,
+                                        species: e.target.value
+                                    }))}
+                                    placeholder="e.g., African Elephant"
+                                    required
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label>Location *</label>
+                                <input
+                                    type="text"
+                                    value={formData.location}
+                                    onChange={(e) => setFormData(prev => ({
+                                        ...prev,
+                                        location: e.target.value
+                                    }))}
+                                    placeholder="e.g., Near watering hole, Sector 3"
+                                    required
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label>Description</label>
+                                <textarea
+                                    value={formData.description}
+                                    onChange={(e) => setFormData(prev => ({
+                                        ...prev,
+                                        description: e.target.value
+                                    }))}
+                                    placeholder="Describe what you observed..."
+                                    rows="3"
+                                />
+                            </div>
+                            <button type="submit" className="submit-btn">
+                                Report Sighting
+                            </button>
+                        </form>
+                    </div>
+                )}
+
+                <div className="sightings-list">
+                    {loading ? (
+                        <div className="loading">Loading sightings...</div>
+                    ) : sightings.length === 0 ? (
+                        <p className="no-sightings">No sightings reported yet</p>
+                    ) : (
+                        sightings.map(sighting => (
+                            <div key={sighting.id} className="sighting-item">
+                                <div className="sighting-header">
+                                    <span className="species">{sighting.species}</span>
+                                    <span className="sighting-date">
+                                        {new Date(sighting.createdAt?.toDate?.() || sighting.createdAt).toLocaleDateString()}
+                                    </span>
+                                </div>
+                                <div className="sighting-location">📍 {sighting.location}</div>
+                                {sighting.description && (
+                                    <p className="sighting-description">{sighting.description}</p>
+                                )}
+                                {sighting.verified && (
+                                    <span className="verified-badge">✅ Verified</span>
+                                )}
+                            </div>
+                        ))
+                    )}
                 </div>
             </div>
 
-            <div className="waste-module">
-                <h3>📷 Wildlife & Environment Monitoring</h3>
-                <p style={{ color: '#5a7a6a', marginBottom: 16 }}>
-                    Camera traps and community reporting tools.
-                </p>
-                <div className="camera-grid">
-                    <div className="camera-card">
-                        <div className="cam-icon">📸</div>
-                        <div><strong>Cam #1</strong></div>
-                        <div className="cam-status">🟢 Online</div>
-                        <div style={{ fontSize: 12, color: '#5a7a6a' }}>Last: 2 min ago</div>
-                    </div>
-                    <div className="camera-card">
-                        <div className="cam-icon">📸</div>
-                        <div><strong>Cam #2</strong></div>
-                        <div className="cam-status">🟡 Buffering</div>
-                        <div style={{ fontSize: 12, color: '#5a7a6a' }}>Last: 15 min ago</div>
-                    </div>
-                    <div className="camera-card">
-                        <div className="cam-icon">📸</div>
-                        <div><strong>Cam #3</strong></div>
-                        <div className="cam-status">🟢 Online</div>
-                        <div style={{ fontSize: 12, color: '#5a7a6a' }}>Last: 1 min ago</div>
-                    </div>
-                    <div className="camera-card" style={{ background: 'var(--accent)' }}>
-                        <div className="cam-icon">🐘</div>
-                        <div><strong>Recent Sighting</strong></div>
-                        <div className="cam-status">Elephant herd</div>
-                        <div style={{ fontSize: 12, color: '#1a3b2e' }}>Reported by Musa</div>
-                    </div>
-                </div>
-                <button className="btn-primary" style={{ marginTop: 8 }}>
-                    Sync Camera Data
-                </button>
-            </div>
+            {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
         </div>
     );
 }

@@ -32,10 +32,11 @@ function Register() {
         
         if (result.success) {
             setToast({ 
-                message: `Account created! Welcome ${name}`, 
+                message: `Account created! Welcome ${name}. You are registered as a ${role.replace('_', ' ')}.`, 
                 type: 'success' 
             });
-            setTimeout(() => navigate('/dashboard'), 500);
+            // Navigate will happen after the toast
+            setTimeout(() => navigate('/dashboard'), 1500);
         } else {
             setToast({ 
                 message: result.error || 'Registration failed. Please try again.', 
@@ -43,6 +44,15 @@ function Register() {
             });
         }
         setLoading(false);
+    };
+
+    // Role descriptions to help users choose
+    const roleDescriptions = {
+        tourist: '🌍 Book experiences and explore sustainable tourism',
+        provider: '🏡 List your lodge, guide services, food, or crafts',
+        waste_sorter: '♻️ Log and manage waste in your community',
+        monitor: '📷 Report wildlife sightings and monitor environment',
+        admin: '🛠️ Manage users, listings, and platform settings'
     };
 
     return (
@@ -99,6 +109,11 @@ function Register() {
                             <option value="monitor">📷 Environmental Monitor</option>
                             <option value="admin">🛠️ Admin / Partner</option>
                         </select>
+                        {role && (
+                            <div className="role-description">
+                                <small>{roleDescriptions[role]}</small>
+                            </div>
+                        )}
                     </div>
                     <button type="submit" className="submit-btn" disabled={loading}>
                         {loading ? 'Creating Account...' : 'Create Account'}
@@ -106,6 +121,10 @@ function Register() {
                 </form>
                 <div className="form-footer">
                     Already have an account? <Link to="/login">Sign in</Link>
+                </div>
+                <div className="demo-hint">
+                    <strong>Demo accounts (select role in registration):</strong><br />
+                    <small>Register as different roles to see different dashboards</small>
                 </div>
             </div>
             {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
