@@ -1,0 +1,104 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #f0f7f0;
+    color: #1a3b2e;
+}
+
+:root {
+    --primary: #2d6a4f;
+    --primary-light: #40916c;
+    --primary-dark: #1b4332;
+    --secondary: #52b788;
+    --accent: #95d5b2;
+    --light: #d8f3dc;
+    --white: #ffffff;
+    --shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+    --radius: 16px;
+    --transition: all 0.3s ease;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+}
+::-webkit-scrollbar-track {
+    background: var(--light);
+}
+::-webkit-scrollbar-thumb {
+    background: var(--secondary);
+    border-radius: 8px;
+}
+
+.app-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 20px 40px;
+}
+
+.hidden {
+    display: none !important;
+}
+
+.mt-16 {
+    margin-top: 16px;
+}
+.mb-8 {
+    margin-bottom: 8px;
+}
+.text-center {
+    text-align: center;
+}
+
+/* Button Styles */
+.btn-primary {
+    background: var(--primary);
+    color: white;
+    border: none;
+    padding: 12px 28px;
+    border-radius: 30px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.btn-primary:hover {
+    background: var(--primary-dark);
+    transform: translateY(-2px);
+}
+
+.btn-outline {
+    background: transparent;
+    border: 2px solid var(--primary);
+    color: var(--primary);
+    padding: 12px 28px;
+    border-radius: 30px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.btn-outline:hover {
+    background: var(--primary);
+    color: white;
+}
+
+.btn-danger {
+    background: #e74c3c;
+    color: white;
+    border: none;
+    padding: 8px 20px;
+    border-radius: 30px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.btn-danger:hover {
+    background: #c0392b;
+}

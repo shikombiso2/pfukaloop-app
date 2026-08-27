@@ -1,0 +1,33 @@
+.toast {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    padding: 16px 28px;
+    border-radius: 12px;
+    background: var(--primary-dark);
+    color: white;
+    font-weight: 600;
+    box-shadow: var(--shadow);
+    z-index: 999;
+    animation: slideUp 0.4s ease;
+    max-width: 400px;
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(100px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.toast.success {
+    background: var(--primary);
+}
+
+.toast.error {
+    background: #c0392b;
+}
