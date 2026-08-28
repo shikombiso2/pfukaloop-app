@@ -5,7 +5,7 @@ import Toast from '../Common/Toast';
 import './Listing.css';
 
 function ListingCard({ listing, onUpdate }) {
-    const { currentUser } = useAuth();
+    const { currentUser, userData } = useAuth();
     const [loading, setLoading] = useState(false);
     const [toast, setToast] = useState(null);
     const [showBooking, setShowBooking] = useState(false);
@@ -17,6 +17,7 @@ function ListingCard({ listing, onUpdate }) {
 
     const handleBook = async (e) => {
         e.preventDefault();
+        
         if (!currentUser) {
             setToast({ message: 'Please login to book', type: 'error' });
             return;
@@ -27,7 +28,23 @@ function ListingCard({ listing, onUpdate }) {
             return;
         }
 
+        // Validate dates
+        const start = new Date(bookingData.startDate);
+        const end = new Date(bookingData.endDate);
+        if (end < start) {
+            setToast({ message: 'End date must be after start date', type: 'error' });
+            return;
+        }
+
+        const days = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+        if (days < 1) {
+            setToast({ message: 'Minimum booking is 1 day', type: 'error' });
+            return;
+        }
+
         setLoading(true);
+        const totalPrice = parseFloat(listing.price) * parseInt(bookingData.guests) * days;
+        
         const result = await createBooking({
             listingId: listing.id,
             providerId: listing.providerId,
@@ -35,12 +52,18 @@ function ListingCard({ listing, onUpdate }) {
             startDate: bookingData.startDate,
             endDate: bookingData.endDate,
             guests: parseInt(bookingData.guests),
-            totalPrice: (parseFloat(listing.price) * parseInt(bookingData.guests))
+            totalPrice: totalPrice,
+            touristName: userData?.name || 'Guest',
+            providerName: listing.providerName || 'Provider'
         });
 
         if (result.success) {
-            setToast({ message: 'Booking created successfully!', type: 'success' });
+            setToast({ 
+                message: `✅ Booking confirmed! Total: R ${totalPrice.toFixed(2)}`, 
+                type: 'success' 
+            });
             setShowBooking(false);
+            setBookingData({ startDate: '', endDate: '', guests: 1 });
             if (onUpdate) onUpdate();
         } else {
             setToast({ message: result.error || 'Failed to create booking', type: 'error' });
@@ -57,6 +80,9 @@ function ListingCard({ listing, onUpdate }) {
         };
         return icons[category] || '📌';
     };
+
+    // Calculate minimum date for booking (today)
+    const minDate = new Date().toISOString().split('T')[0];
 
     return (
         <div className="listing-card">
@@ -76,7 +102,7 @@ function ListingCard({ listing, onUpdate }) {
             <p className="listing-description">{listing.description}</p>
             
             <div className="listing-details">
-                <span className="price">R {listing.price}</span>
+                <span className="price">R {listing.price} <small>/night</small></span>
                 {listing.capacity && (
                     <span className="capacity">👤 {listing.capacity} people</span>
                 )}
@@ -98,13 +124,13 @@ function ListingCard({ listing, onUpdate }) {
                     onClick={() => setShowBooking(!showBooking)}
                     disabled={!currentUser}
                 >
-                    {currentUser ? 'Book Now' : 'Login to Book'}
+                    {currentUser ? '📅 Book Now' : '🔒 Login to Book'}
                 </button>
             )}
 
             {showBooking && (
                 <div className="booking-form">
-                    <h4>Book This Experience</h4>
+                    <h4>📅 Book This Experience</h4>
                     <form onSubmit={handleBook}>
                         <div className="form-group">
                             <label>Start Date</label>
@@ -115,7 +141,7 @@ function ListingCard({ listing, onUpdate }) {
                                     ...prev,
                                     startDate: e.target.value
                                 }))}
-                                min={new Date().toISOString().split('T')[0]}
+                                min={minDate}
                                 required
                             />
                         </div>
@@ -128,7 +154,7 @@ function ListingCard({ listing, onUpdate }) {
                                     ...prev,
                                     endDate: e.target.value
                                 }))}
-                                min={bookingData.startDate || new Date().toISOString().split('T')[0]}
+                                min={bookingData.startDate || minDate}
                                 required
                             />
                         </div>
@@ -146,11 +172,21 @@ function ListingCard({ listing, onUpdate }) {
                                 required
                             />
                         </div>
-                        <div className="booking-total">
-                            Total: R {(parseFloat(listing.price) * parseInt(bookingData.guests) || 0).toFixed(2)}
-                        </div>
+                        {bookingData.startDate && bookingData.endDate && (
+                            <div className="booking-total">
+                                Total: R {
+                                    (parseFloat(listing.price) * 
+                                    parseInt(bookingData.guests) * 
+                                    Math.ceil((new Date(bookingData.endDate) - new Date(bookingData.startDate)) / (1000 * 60 * 60 * 24))
+                                    ).toFixed(2)
+                                }
+                                <small style={{ display: 'block', fontSize: '12px', color: '#5a7a6a' }}>
+                                    ({Math.ceil((new Date(bookingData.endDate) - new Date(bookingData.startDate)) / (1000 * 60 * 60 * 24))} nights × {bookingData.guests} guests)
+                                </small>
+                            </div>
+                        )}
                         <button type="submit" className="submit-btn" disabled={loading}>
-                            {loading ? 'Processing...' : 'Confirm Booking'}
+                            {loading ? 'Processing...' : '✅ Confirm Booking'}
                         </button>
                         <button 
                             type="button" 

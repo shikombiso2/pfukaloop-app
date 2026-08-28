@@ -6,8 +6,8 @@ import './Dashboard.css';
 function TouristDashboard({ user }) {
     const [listings, setListings] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
     const [toast, setToast] = useState(null);
+    const [filter, setFilter] = useState('all');
 
     useEffect(() => {
         loadListings();
@@ -15,67 +15,23 @@ function TouristDashboard({ user }) {
 
     const loadListings = async () => {
         setLoading(true);
-        setError(null);
-        
-        const result = await getListings({});
+        const result = await getListings({ available: true });
         
         if (result.success) {
             setListings(result.data);
         } else {
-            console.error('Error loading listings:', result.error);
-            if (result.needsIndex) {
-                setError('Please create the required index in Firebase Console.');
-                setToast({ 
-                    message: 'Index needed. Please check console for link.', 
-                    type: 'error' 
-                });
-            } else {
-                setError(result.error || 'Failed to load listings');
-            }
+            setToast({ 
+                message: result.error || 'Failed to load listings', 
+                type: 'error' 
+            });
         }
         setLoading(false);
     };
 
-    const handleBook = (listing) => {
-        setToast({ message: `Booking ${listing.title} coming soon!`, type: 'success' });
-    };
-
-    if (loading) {
-        return (
-            <div className="dashboard-container">
-                <div className="dashboard-header">
-                    <h2>👋 Welcome, {user.name}</h2>
-                    <span className="role-badge">Tourist</span>
-                </div>
-                <div className="loading">Loading available experiences...</div>
-            </div>
-        );
-    }
-
-    if (error) {
-        return (
-            <div className="dashboard-container">
-                <div className="dashboard-header">
-                    <h2>👋 Welcome, {user.name}</h2>
-                    <span className="role-badge">Tourist</span>
-                </div>
-                <div className="error-container">
-                    <h3>⚠️ Error Loading Listings</h3>
-                    <p>{error}</p>
-                    <button 
-                        className="btn-primary" 
-                        onClick={() => window.open('https://console.firebase.google.com/project/pfukaloop/firestore/indexes', '_blank')}
-                    >
-                        Create Index in Firebase
-                    </button>
-                    <button className="btn-outline" onClick={loadListings}>
-                        Retry
-                    </button>
-                </div>
-                {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
-            </div>
-        );
-    }
+    const filteredListings = listings.filter(listing => {
+        if (filter === 'all') return true;
+        return listing.category === filter;
+    });
 
     return (
         <div className="dashboard-container">
@@ -84,14 +40,55 @@ function TouristDashboard({ user }) {
                 <span className="role-badge">Tourist</span>
             </div>
 
+            {/* Filter Buttons */}
+            <div className="filter-section">
+                <button 
+                    className={`filter-btn ${filter === 'all' ? 'active' : ''}`}
+                    onClick={() => setFilter('all')}
+                >
+                    All
+                </button>
+                <button 
+                    className={`filter-btn ${filter === 'lodging' ? 'active' : ''}`}
+                    onClick={() => setFilter('lodging')}
+                >
+                    🏡 Lodging
+                </button>
+                <button 
+                    className={`filter-btn ${filter === 'guide' ? 'active' : ''}`}
+                    onClick={() => setFilter('guide')}
+                >
+                    🧭 Guides
+                </button>
+                <button 
+                    className={`filter-btn ${filter === 'food' ? 'active' : ''}`}
+                    onClick={() => setFilter('food')}
+                >
+                    🍽️ Food
+                </button>
+                <button 
+                    className={`filter-btn ${filter === 'craft' ? 'active' : ''}`}
+                    onClick={() => setFilter('craft')}
+                >
+                    🎨 Crafts
+                </button>
+            </div>
+
             <div className="dashboard-content">
                 <div className="section">
-                    <h3>🌍 Available Experiences</h3>
-                    {listings.length === 0 ? (
-                        <p className="no-listings">No experiences available at the moment.</p>
+                    <h3>🌍 Available Experiences ({filteredListings.length})</h3>
+                    {loading ? (
+                        <div className="loading">Loading experiences...</div>
+                    ) : filteredListings.length === 0 ? (
+                        <div className="no-listings">
+                            <p>No experiences available in this category.</p>
+                            <button className="btn-primary" onClick={loadListings}>
+                                Refresh
+                            </button>
+                        </div>
                     ) : (
                         <div className="listings-grid">
-                            {listings.map(listing => (
+                            {filteredListings.map(listing => (
                                 <div key={listing.id} className="listing-card">
                                     <div className="listing-card-header">
                                         <span className="category-badge">{listing.category}</span>
@@ -101,10 +98,11 @@ function TouristDashboard({ user }) {
                                     </div>
                                     <h4>{listing.title}</h4>
                                     <p className="listing-description">
-                                        {listing.description?.substring(0, 100)}...
+                                        {listing.description?.substring(0, 120)}
+                                        {listing.description?.length > 120 && '...'}
                                     </p>
                                     <div className="listing-details">
-                                        <span className="price">R {listing.price}</span>
+                                        <span className="price">R {listing.price} <small>/night</small></span>
                                         <span className="location">📍 {listing.location}</span>
                                     </div>
                                     <div className="listing-footer">
@@ -112,15 +110,17 @@ function TouristDashboard({ user }) {
                                             ⭐ {listing.rating?.toFixed(1) || 'New'} 
                                             ({listing.totalReviews || 0} reviews)
                                         </span>
-                                        <span className="provider">
-                                            By {listing.providerName || 'Community'}
-                                        </span>
                                     </div>
                                     <button 
                                         className="book-btn"
-                                        onClick={() => handleBook(listing)}
+                                        onClick={() => {
+                                            setToast({ 
+                                                message: `Booking for "${listing.title}" coming soon!`, 
+                                                type: 'success' 
+                                            });
+                                        }}
                                     >
-                                        Book Now
+                                        📅 Book Now
                                     </button>
                                 </div>
                             ))}

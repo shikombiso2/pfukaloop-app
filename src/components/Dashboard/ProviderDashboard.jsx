@@ -18,7 +18,7 @@ function ProviderDashboard({ user }) {
                     className={`tab ${activeTab === 'listings' ? 'active' : ''}`}
                     onClick={() => setActiveTab('listings')}
                 >
-                    📋 My Listings
+                    📋 My Listings ({user.listings?.length || 0})
                 </button>
                 <button 
                     className={`tab ${activeTab === 'create' ? 'active' : ''}`}
@@ -36,15 +36,44 @@ function ProviderDashboard({ user }) {
 
             <div className="dashboard-content">
                 {activeTab === 'listings' && (
-                    <ListingList filters={{ providerId: user.uid }} />
+                    <div className="section">
+                        <ListingList filters={{ providerId: user.uid }} />
+                    </div>
                 )}
                 {activeTab === 'create' && (
-                    <CreateListing />
+                    <div className="section">
+                        <CreateListing />
+                    </div>
                 )}
                 {activeTab === 'bookings' && (
-                    <div className="bookings-section">
-                        <h3>Your Bookings</h3>
-                        <p>Booking management coming soon...</p>
+                    <div className="section">
+                        <div className="bookings-section">
+                            <h3>📊 Your Bookings</h3>
+                            <p style={{ color: '#5a7a6a', marginBottom: '16px' }}>
+                                View and manage bookings for your listings
+                            </p>
+                            <div className="booking-stats">
+                                <div className="stat-card">
+                                    <h4>Total Bookings</h4>
+                                    <div className="stat-number">0</div>
+                                </div>
+                                <div className="stat-card">
+                                    <h4>Pending</h4>
+                                    <div className="stat-number">0</div>
+                                </div>
+                                <div className="stat-card">
+                                    <h4>Completed</h4>
+                                    <div className="stat-number">0</div>
+                                </div>
+                                <div className="stat-card">
+                                    <h4>Revenue</h4>
+                                    <div className="stat-number">R 0</div>
+                                </div>
+                            </div>
+                            <p style={{ textAlign: 'center', color: '#95a5a6', padding: '20px 0' }}>
+                                Bookings will appear here once customers book your listings
+                            </p>
+                        </div>
                     </div>
                 )}
             </div>

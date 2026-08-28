@@ -338,3 +338,70 @@
         width: 100%;
     }
 }
+/* Filter Section */
+.filter-section {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+}
+
+.filter-btn {
+    padding: 8px 20px;
+    background: var(--white);
+    border: 2px solid var(--light);
+    border-radius: 30px;
+    font-weight: 600;
+    color: var(--primary-dark);
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.filter-btn:hover {
+    background: var(--light);
+}
+
+.filter-btn.active {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+}
+
+/* No listings */
+.no-listings {
+    text-align: center;
+    padding: 40px 0;
+    color: #95a5a6;
+}
+
+.no-listings .btn-primary {
+    margin-top: 12px;
+}
+
+/* Booking Stats */
+.booking-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.booking-stats .stat-card {
+    background: var(--white);
+    padding: 16px;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    text-align: center;
+}
+
+.booking-stats .stat-card h4 {
+    color: #5a7a6a;
+    font-size: 14px;
+    margin-bottom: 8px;
+}
+
+.booking-stats .stat-number {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--primary);
+}

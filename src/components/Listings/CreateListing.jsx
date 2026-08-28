@@ -39,9 +39,13 @@ function CreateListing() {
     const handleSubmit = async (e) => {
         e.preventDefault();
         
-        // Validate
         if (!formData.title || !formData.description || !formData.price || !formData.location) {
             setToast({ message: 'Please fill in all required fields', type: 'error' });
+            return;
+        }
+
+        if (!userData) {
+            setToast({ message: 'Please login to create a listing', type: 'error' });
             return;
         }
 
@@ -51,7 +55,8 @@ function CreateListing() {
             providerId: userData.uid,
             providerName: userData.name,
             price: parseFloat(formData.price),
-            capacity: formData.capacity ? parseInt(formData.capacity) : null
+            capacity: formData.capacity ? parseInt(formData.capacity) : null,
+            amenities: formData.amenities.filter(a => a.trim() !== '')
         });
 
         if (result.success) {
@@ -77,6 +82,9 @@ function CreateListing() {
     return (
         <div className="create-listing">
             <h2>Create New Listing</h2>
+            <p style={{ color: '#5a7a6a', marginBottom: '20px' }}>
+                List your lodge, guide service, food experience, or crafts
+            </p>
             <form onSubmit={handleSubmit}>
                 <div className="form-group">
                     <label>Category *</label>
@@ -116,7 +124,7 @@ function CreateListing() {
                         name="description"
                         value={formData.description}
                         onChange={handleChange}
-                        placeholder="Describe your offering..."
+                        placeholder="Describe your offering in detail..."
                         rows="4"
                         required
                     />
@@ -175,8 +183,8 @@ function CreateListing() {
                     />
                 </div>
 
-                <div className="form-group">
-                    <label>
+                <div className="form-group" style={{ marginTop: '12px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <input
                             type="checkbox"
                             name="available"
