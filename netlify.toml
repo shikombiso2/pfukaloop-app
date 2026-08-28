@@ -19,13 +19,3 @@
   for = "/index.html"
   [headers.values]
     Cache-Control = "no-cache"
-
-[[headers]]
-  for = "/*.js"
-  [headers.values]
-    Content-Encoding = "gzip"
-
-[[headers]]
-  for = "/*.css"
-  [headers.values]
-    Content-Encoding = "gzip"
