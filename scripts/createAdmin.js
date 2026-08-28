@@ -3,16 +3,14 @@ import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
 import { getFirestore, doc, setDoc } from 'firebase/firestore';
 
 const firebaseConfig = {
-
-  apiKey: "AIzaSyCMsfQLSIpQGm7qwfzTbtgyMSTAZQ5K0k4",
-  authDomain: "pfukaloop.firebaseapp.com",
-  projectId: "pfukaloop",
-  storageBucket: "pfukaloop.firebasestorage.app",
-  messagingSenderId: "647284542825",
-  appId: "1:647284542825:web:e6680c043ba105965501f8",
-  measurementId: "G-2CYL8WWYWB"
+  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
+  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.REACT_APP_FIREBASE_APP_ID,
+  measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID,
 };
-
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
