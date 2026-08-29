@@ -2,6 +2,7 @@ import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import NotificationBell from './Notifications/NotificationBell';
+import logoImage from '../assets/logo.jpeg';
 import './Navbar.css';
 
 function Navbar() {
@@ -16,8 +17,11 @@ function Navbar() {
     return (
         <nav className="navbar">
             <div className="logo">
-                <span className="logo-icon">🌿</span>
-                <span>Pfukaloop</span>
+                <img src={logoImage} alt="Pfukaloop" className="logo-image" />
+                <div className="logo-text">
+                    <span className="logo-title">PFUKALOOP</span>
+                    <span className="logo-subtitle">PRESERVE • PROMOTE • PROSPER</span>
+                </div>
             </div>
             <div className="nav-links">
                 {currentUser ? (

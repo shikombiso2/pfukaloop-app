@@ -20,25 +20,25 @@ function ProviderDashboard({ user }) {
 
     useEffect(() => {
         if (user) {
-            loadListingCount();
-            loadBookingStats();
+            loadProviderData();
         }
-    }, [user, activeTab, refreshTrigger]);
+    }, [user, refreshTrigger]);
 
-    const loadListingCount = async () => {
-        if (user) {
-            const result = await getListings({ providerId: user.uid });
-            if (result.success) {
-                setListingCount(result.data.length);
+    const loadProviderData = async () => {
+        if (!user) return;
+        
+        try {
+            // Get provider's own listings
+            const listingsResult = await getListings({ providerId: user.uid });
+            if (listingsResult.success) {
+                const listings = listingsResult.data || [];
+                setListingCount(listings.length);
             }
-        }
-    };
 
-    const loadBookingStats = async () => {
-        if (user) {
-            const result = await getBookings({ providerId: user.uid });
-            if (result.success) {
-                const bookings = result.data || [];
+            // Get bookings for provider's listings
+            const bookingsResult = await getBookings({ providerId: user.uid });
+            if (bookingsResult.success) {
+                const bookings = bookingsResult.data || [];
                 setBookingCount(bookings.length);
                 
                 const totalRevenue = bookings.reduce((sum, b) => sum + (b.totalPrice || 0), 0);
@@ -51,13 +51,16 @@ function ProviderDashboard({ user }) {
                     completedBookings
                 });
             }
+        } catch (error) {
+            console.error('Error loading provider data:', error);
+            setToast({ message: 'Error loading data', type: 'error' });
         }
     };
 
     const handleListingCreated = () => {
         setActiveTab('listings');
         setRefreshTrigger(prev => prev + 1);
-        loadListingCount();
+        loadProviderData();
         setToast({ message: '✅ Listing created successfully!', type: 'success' });
     };
 
@@ -68,14 +71,14 @@ function ProviderDashboard({ user }) {
                 <span className="role-badge">PROVIDER</span>
             </div>
 
-            {/* Stats Cards */}
+            {/* Stats Cards - Only for provider's own data */}
             <div className="stats-grid">
                 <div className="stat-card">
                     <h4>📋 My Listings</h4>
                     <div className="stat-number">{listingCount}</div>
                 </div>
                 <div className="stat-card">
-                    <h4>📊 Total Bookings</h4>
+                    <h4>📊 My Bookings</h4>
                     <div className="stat-number">{bookingCount}</div>
                 </div>
                 <div className="stat-card">
@@ -83,7 +86,7 @@ function ProviderDashboard({ user }) {
                     <div className="stat-number">{stats.pendingBookings}</div>
                 </div>
                 <div className="stat-card">
-                    <h4>💰 Total Revenue</h4>
+                    <h4>💰 My Revenue</h4>
                     <div className="stat-number">R {stats.totalRevenue.toFixed(2)}</div>
                 </div>
             </div>
@@ -107,14 +110,25 @@ function ProviderDashboard({ user }) {
                 >
                     📊 My Bookings ({bookingCount})
                 </button>
+                <button 
+                    className={`tab ${activeTab === 'browse' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('browse')}
+                >
+                    🌍 Browse Listings
+                </button>
             </div>
 
             <div className="dashboard-content">
                 {activeTab === 'listings' && (
                     <div className="section">
+                        <h3>📋 My Listings</h3>
+                        <p style={{ color: '#5a7a6a', marginBottom: '16px' }}>
+                            These are the listings you have created. You cannot book your own listings.
+                        </p>
                         <ListingList 
                             filters={{ providerId: user?.uid }} 
                             key={refreshTrigger}
+                            hideBookButton={true}
                         />
                     </div>
                 )}
@@ -125,7 +139,24 @@ function ProviderDashboard({ user }) {
                 )}
                 {activeTab === 'mybookings' && (
                     <div className="section">
+                        <h3>📊 My Bookings</h3>
+                        <p style={{ color: '#5a7a6a', marginBottom: '16px' }}>
+                            Bookings received for your listings
+                        </p>
                         <MyBookings />
+                    </div>
+                )}
+                {activeTab === 'browse' && (
+                    <div className="section">
+                        <h3>🌍 Browse Other Listings</h3>
+                        <p style={{ color: '#5a7a6a', marginBottom: '16px' }}>
+                            Explore and book experiences from other providers
+                        </p>
+                        <ListingList 
+                            filters={{}} 
+                            hideOwnListing={true}
+                            currentUserId={user?.uid}
+                        />
                     </div>
                 )}
             </div>

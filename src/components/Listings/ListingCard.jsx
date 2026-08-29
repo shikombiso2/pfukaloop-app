@@ -4,7 +4,7 @@ import { createBooking } from '../../services/firebaseServices';
 import Toast from '../Common/Toast';
 import './Listing.css';
 
-function ListingCard({ listing, onUpdate }) {
+function ListingCard({ listing, onUpdate, hideBookButton = false, currentUserId = null }) {
     const { currentUser, userData } = useAuth();
     const [loading, setLoading] = useState(false);
     const [toast, setToast] = useState(null);
@@ -19,12 +19,18 @@ function ListingCard({ listing, onUpdate }) {
 
     const isNightly = listing.durationType === 'night' || listing.category === 'lodging';
     const priceUnit = isNightly ? 'night' : 'hour';
+    const isOwnListing = currentUserId && listing.providerId === currentUserId;
 
     const handleBook = async (e) => {
         e.preventDefault();
         
         if (!currentUser) {
             setToast({ message: 'Please login to book', type: 'error' });
+            return;
+        }
+
+        if (isOwnListing) {
+            setToast({ message: 'You cannot book your own listing', type: 'error' });
             return;
         }
 
@@ -45,7 +51,7 @@ function ListingCard({ listing, onUpdate }) {
         try {
             let quantity = 0;
             let totalPrice = 0;
-            const price = parseFloat(listing.price);
+            const price = parseFloat(listing.price) || 0;
             const guests = parseInt(bookingData.guests || 1);
 
             if (isNightly) {
@@ -125,6 +131,8 @@ function ListingCard({ listing, onUpdate }) {
     maxDate.setFullYear(maxDate.getFullYear() + 1);
     const maxDateStr = maxDate.toISOString().split('T')[0];
 
+    const displayPrice = listing.price ? parseFloat(listing.price).toFixed(2) : '0.00';
+
     return (
         <div className="listing-card">
             {listing.imageUrl && (
@@ -144,6 +152,9 @@ function ListingCard({ listing, onUpdate }) {
                     {!listing.available && (
                         <span className="unavailable-badge">❌ Unavailable</span>
                     )}
+                    {isOwnListing && (
+                        <span className="own-listing-badge">📌 Your Listing</span>
+                    )}
                 </div>
                 
                 <h3>{listing.title}</h3>
@@ -151,7 +162,7 @@ function ListingCard({ listing, onUpdate }) {
                 
                 <div className="listing-details">
                     <span className="price">
-                        R {listing.price} <small>/{isNightly ? 'night' : 'hour'}</small>
+                        R {displayPrice} <small>/{isNightly ? 'night' : 'hour'}</small>
                     </span>
                     {listing.capacity && (
                         <span className="capacity">👤 {listing.capacity} people</span>
@@ -174,7 +185,7 @@ function ListingCard({ listing, onUpdate }) {
                     </div>
                 </div>
 
-                {listing.available && (
+                {listing.available && !hideBookButton && !isOwnListing && (
                     <button 
                         className="book-btn"
                         onClick={() => setShowBooking(!showBooking)}
@@ -182,6 +193,14 @@ function ListingCard({ listing, onUpdate }) {
                     >
                         {currentUser ? '📅 Book Now' : '🔒 Login to Book'}
                     </button>
+                )}
+
+                {isOwnListing && (
+                    <div className="own-listing-message">
+                        <span style={{ color: '#6c757d', fontSize: '14px' }}>
+                            📌 You cannot book your own listing
+                        </span>
+                    </div>
                 )}
 
                 {showBooking && (

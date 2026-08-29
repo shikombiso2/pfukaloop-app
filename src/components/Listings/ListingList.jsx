@@ -3,14 +3,14 @@ import { getListings } from '../../services/firebaseServices';
 import ListingCard from './ListingCard';
 import './Listing.css';
 
-function ListingList({ filters = {}, key }) {
+function ListingList({ filters = {}, key, hideBookButton = false, hideOwnListing = false, currentUserId = null }) {
     const [listings, setListings] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
     useEffect(() => {
         loadListings();
-    }, [filters.providerId, key]); // Added key to dependency array
+    }, [filters.providerId, key]);
 
     const loadListings = async () => {
         setLoading(true);
@@ -21,11 +21,21 @@ function ListingList({ filters = {}, key }) {
             
             if (result.success) {
                 let filteredData = result.data;
+                
+                // Apply provider filter
                 if (filters.providerId) {
                     filteredData = filteredData.filter(
                         listing => listing.providerId === filters.providerId
                     );
                 }
+                
+                // Hide own listings when browsing (for providers)
+                if (hideOwnListing && currentUserId) {
+                    filteredData = filteredData.filter(
+                        listing => listing.providerId !== currentUserId
+                    );
+                }
+                
                 setListings(filteredData);
             } else {
                 setError(result.error || 'Failed to load listings');
@@ -38,7 +48,7 @@ function ListingList({ filters = {}, key }) {
     };
 
     if (loading) {
-        return <div className="loading">Loading your listings...</div>;
+        return <div className="loading">Loading listings...</div>;
     }
 
     if (error) {
@@ -72,9 +82,11 @@ function ListingList({ filters = {}, key }) {
                 color: '#5a7a6a'
             }}>
                 <p style={{ fontSize: '16px' }}>No listings found</p>
-                <p style={{ fontSize: '14px', color: '#95a5a6', marginTop: '8px' }}>
-                    Create your first listing to get started!
-                </p>
+                {!hideBookButton && (
+                    <p style={{ fontSize: '14px', color: '#95a5a6', marginTop: '8px' }}>
+                        Create your first listing to get started!
+                    </p>
+                )}
                 <button 
                     className="btn-primary" 
                     onClick={loadListings}
@@ -93,6 +105,8 @@ function ListingList({ filters = {}, key }) {
                     key={listing.id} 
                     listing={listing}
                     onUpdate={loadListings}
+                    hideBookButton={hideBookButton}
+                    currentUserId={currentUserId}
                 />
             ))}
         </div>

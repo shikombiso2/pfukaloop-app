@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { getBookings, updateBookingStatus } from '../../services/firebaseServices';
 import WriteReview from '../Reviews/WriteReview';
@@ -13,13 +13,7 @@ function MyBookings() {
     const [selectedBooking, setSelectedBooking] = useState(null);
     const [filter, setFilter] = useState('all');
 
-    useEffect(() => {
-        if (userData) {
-            loadBookings();
-        }
-    }, [userData]);
-
-    const loadBookings = async () => {
+    const loadBookings = useCallback(async () => {
         if (!userData) {
             setLoading(false);
             return;
@@ -36,12 +30,9 @@ function MyBookings() {
                 filters.touristId = userData.uid;
             }
             
-            console.log('Loading bookings with filters:', filters);
-            
             const result = await getBookings(filters);
             
             if (result.success) {
-                console.log('Bookings loaded:', result.data);
                 setBookings(result.data || []);
             } else {
                 console.error('Failed to load bookings:', result.error);
@@ -55,7 +46,11 @@ function MyBookings() {
         }
         
         setLoading(false);
-    };
+    }, [userData]);
+
+    useEffect(() => {
+        loadBookings();
+    }, [loadBookings]);
 
     const handleUpdateStatus = async (bookingId, status) => {
         const result = await updateBookingStatus(bookingId, status);
@@ -178,10 +173,8 @@ function MyBookings() {
                                 )}
                                 <p><strong>Guests:</strong> {booking.guests || 1}</p>
                                 <p><strong>Total:</strong> R {booking.totalPrice?.toFixed(2) || '0.00'}</p>
-                                <p><strong>Booking ID:</strong> {booking.id?.substring(0, 8) || 'N/A'}</p>
                             </div>
                             
-                            {/* Provider Actions */}
                             {userData?.role === 'provider' && booking.status === 'pending' && (
                                 <div className="booking-actions">
                                     <button 
@@ -210,7 +203,6 @@ function MyBookings() {
                                 </div>
                             )}
                             
-                            {/* Tourist Review */}
                             {userData?.role === 'tourist' && isBookingCompleted(booking) && booking.status !== 'cancelled' && (
                                 <button 
                                     className="review-btn"

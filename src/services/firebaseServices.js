@@ -72,6 +72,7 @@ export const createListing = async (data) => {
     }
 };
 
+
 export const getListings = async (filters = {}) => {
     try {
         // Simple query without orderBy to avoid index requirement
@@ -146,11 +147,33 @@ export const updateListing = async (listingId, data) => {
 
 export const deleteListing = async (listingId) => {
     try {
-        await deleteDoc(doc(db, 'listings', listingId));
+        if (!listingId) {
+            return { success: false, error: 'Listing ID is required' };
+        }
+        
+        console.log('Deleting listing with ID:', listingId);
+        
+        // Check if user is authenticated
+        if (!auth.currentUser) {
+            return { success: false, error: 'You must be logged in to delete a listing' };
+        }
+        
+        const listingRef = doc(db, 'listings', listingId);
+        
+        // First check if the listing exists
+        const listingDoc = await getDoc(listingRef);
+        if (!listingDoc.exists()) {
+            return { success: false, error: 'Listing not found' };
+        }
+        
+        // Delete the listing
+        await deleteDoc(listingRef);
+        console.log('Listing deleted successfully');
+        
         return { success: true };
     } catch (error) {
         console.error('Error deleting listing:', error);
-        return { success: false, error: error.message };
+        return { success: false, error: error.message || 'Failed to delete listing' };
     }
 };
 
@@ -404,6 +427,20 @@ export const createWasteLog = async (data) => {
         return { success: true, id: docRef.id };
     } catch (error) {
         console.error('Error creating waste log:', error);
+        return { success: false, error: error.message };
+    }
+};
+
+export const getUsers = async () => {
+    try {
+        const querySnapshot = await getDocs(collection(db, 'users'));
+        const users = [];
+        querySnapshot.forEach((doc) => {
+            users.push({ id: doc.id, ...doc.data() });
+        });
+        return { success: true, data: users };
+    } catch (error) {
+        console.error('Error getting users:', error);
         return { success: false, error: error.message };
     }
 };

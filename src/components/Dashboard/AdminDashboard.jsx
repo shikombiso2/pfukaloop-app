@@ -1,11 +1,20 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { getListings, verifyListing, getBookings, deleteListing } from '../../services/firebaseServices';
+import React, { useState, useEffect } from 'react';
+import { 
+    getListings, 
+    getBookings, 
+    getUsers,
+    verifyListing, 
+    deleteListing,
+    updateBookingStatus,
+    updateUserData
+} from '../../services/firebaseServices';
 import Toast from '../Common/Toast';
 import './Dashboard.css';
 
 function AdminDashboard({ user }) {
     const [listings, setListings] = useState([]);
     const [bookings, setBookings] = useState([]);
+    const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [toast, setToast] = useState(null);
     const [activeTab, setActiveTab] = useState('listings');
@@ -13,18 +22,24 @@ function AdminDashboard({ user }) {
         totalListings: 0,
         totalUsers: 0,
         totalBookings: 0,
-        revenue: 0
+        totalRevenue: 0,
+        pendingBookings: 0,
+        verifiedListings: 0,
+        unverifiedListings: 0
     });
 
-    // Define loadAllData with useCallback to avoid dependency issues
-    const loadAllData = useCallback(async () => {
+    useEffect(() => {
+        loadAllData();
+    }, []);
+
+    const loadAllData = async () => {
         setLoading(true);
         try {
             // Load listings
             const listingsResult = await getListings();
             let listingsData = [];
             if (listingsResult.success) {
-                listingsData = listingsResult.data;
+                listingsData = listingsResult.data || [];
                 setListings(listingsData);
             }
 
@@ -32,16 +47,32 @@ function AdminDashboard({ user }) {
             const bookingsResult = await getBookings();
             let bookingsData = [];
             if (bookingsResult.success) {
-                bookingsData = bookingsResult.data;
+                bookingsData = bookingsResult.data || [];
                 setBookings(bookingsData);
             }
 
+            // Load users
+            const usersResult = await getUsers();
+            let usersData = [];
+            if (usersResult.success) {
+                usersData = usersResult.data || [];
+                setUsers(usersData);
+            }
+
             // Calculate stats
+            const verifiedListings = listingsData.filter(l => l.verified === true).length;
+            const unverifiedListings = listingsData.filter(l => l.verified !== true).length;
+            const pendingBookings = bookingsData.filter(b => b.status === 'pending').length;
+            const totalRevenue = bookingsData.reduce((sum, b) => sum + (b.totalPrice || 0), 0);
+
             setStats({
-                totalListings: listingsData.length || 0,
-                totalUsers: 0, // You can add user count later
-                totalBookings: bookingsData.length || 0,
-                revenue: bookingsData.reduce((sum, b) => sum + (b.totalPrice || 0), 0) || 0
+                totalListings: listingsData.length,
+                totalUsers: usersData.length,
+                totalBookings: bookingsData.length,
+                totalRevenue: totalRevenue,
+                pendingBookings: pendingBookings,
+                verifiedListings: verifiedListings,
+                unverifiedListings: unverifiedListings
             });
         } catch (error) {
             console.error('Error loading admin data:', error);
@@ -49,34 +80,87 @@ function AdminDashboard({ user }) {
         } finally {
             setLoading(false);
         }
-    }, []);
-
-    useEffect(() => {
-        loadAllData();
-    }, [loadAllData]);
+    };
 
     const handleVerify = async (listingId, verified) => {
-        const result = await verifyListing(listingId, verified);
-        if (result.success) {
+        try {
+            const result = await verifyListing(listingId, verified);
+            if (result.success) {
+                setToast({ 
+                    message: `Listing ${verified ? 'verified' : 'unverified'} successfully`, 
+                    type: 'success' 
+                });
+                loadAllData();
+            } else {
+                setToast({ 
+                    message: result.error || 'Failed to update verification. Check Firebase rules.', 
+                    type: 'error' 
+                });
+            }
+        } catch (error) {
+            console.error('Verify error:', error);
             setToast({ 
-                message: `Listing ${verified ? 'verified' : 'unverified'} successfully`, 
-                type: 'success' 
+                message: 'Error: ' + (error.message || 'Failed to verify listing'), 
+                type: 'error' 
             });
-            loadAllData();
-        } else {
-            setToast({ message: result.error || 'Failed to update verification', type: 'error' });
         }
     };
 
     const handleDeleteListing = async (listingId) => {
-        if (window.confirm('Are you sure you want to delete this listing?')) {
+    if (window.confirm('⚠️ Are you sure you want to delete this listing? This action cannot be undone.')) {
+        try {
+            console.log('Attempting to delete listing:', listingId);
             const result = await deleteListing(listingId);
+            console.log('Delete result:', result);
+            
             if (result.success) {
-                setToast({ message: 'Listing deleted successfully', type: 'success' });
+                setToast({ message: '✅ Listing deleted successfully', type: 'success' });
+                // Remove from local state immediately
+                setListings(prev => prev.filter(l => l.id !== listingId));
+                // Also reload data
                 loadAllData();
             } else {
-                setToast({ message: result.error || 'Failed to delete listing', type: 'error' });
+                setToast({ 
+                    message: result.error || 'Failed to delete listing. Please check console for details.', 
+                    type: 'error' 
+                });
             }
+        } catch (error) {
+            console.error('Delete error:', error);
+            setToast({ 
+                message: 'Error: ' + (error.message || 'Failed to delete listing'), 
+                type: 'error' 
+            });
+        }
+    }
+};
+    const handleUpdateUserRole = async (userId, newRole) => {
+        const result = await updateUserData(userId, { role: newRole });
+        if (result.success) {
+            setToast({ message: `User role updated to ${newRole}`, type: 'success' });
+            loadAllData();
+        } else {
+            setToast({ message: result.error || 'Failed to update user role', type: 'error' });
+        }
+    };
+
+    const handleUpdateBookingStatus = async (bookingId, status) => {
+        const result = await updateBookingStatus(bookingId, status);
+        if (result.success) {
+            setToast({ message: `Booking ${status}`, type: 'success' });
+            loadAllData();
+        } else {
+            setToast({ message: result.error || 'Failed to update booking', type: 'error' });
+        }
+    };
+
+    const getStatusColor = (status) => {
+        switch (status) {
+            case 'pending': return '#ffc107';
+            case 'confirmed': return '#17a2b8';
+            case 'completed': return '#28a745';
+            case 'cancelled': return '#dc3545';
+            default: return '#6c757d';
         }
     };
 
@@ -84,7 +168,7 @@ function AdminDashboard({ user }) {
         <div className="dashboard-container">
             <div className="dashboard-header">
                 <div>
-                    <h2>👋 Welcome, {user.name}</h2>
+                    <h2>👋 Welcome, {user?.name || 'Admin'}</h2>
                     <span className="role-badge">ADMIN</span>
                 </div>
                 <div className="admin-actions">
@@ -99,6 +183,10 @@ function AdminDashboard({ user }) {
                 <div className="stat-card">
                     <h4>📋 Total Listings</h4>
                     <div className="stat-number">{stats.totalListings}</div>
+                    <div className="stat-details">
+                        <span>✅ {stats.verifiedListings} verified</span>
+                        <span>❌ {stats.unverifiedListings} unverified</span>
+                    </div>
                 </div>
                 <div className="stat-card">
                     <h4>👥 Total Users</h4>
@@ -107,10 +195,13 @@ function AdminDashboard({ user }) {
                 <div className="stat-card">
                     <h4>📊 Total Bookings</h4>
                     <div className="stat-number">{stats.totalBookings}</div>
+                    <div className="stat-details">
+                        <span>⏳ {stats.pendingBookings} pending</span>
+                    </div>
                 </div>
                 <div className="stat-card">
                     <h4>💰 Total Revenue</h4>
-                    <div className="stat-number">R {stats.revenue.toFixed(2)}</div>
+                    <div className="stat-number">R {stats.totalRevenue.toFixed(2)}</div>
                 </div>
             </div>
 
@@ -120,25 +211,19 @@ function AdminDashboard({ user }) {
                     className={`tab ${activeTab === 'listings' ? 'active' : ''}`}
                     onClick={() => setActiveTab('listings')}
                 >
-                    📋 Listings
+                    📋 Listings ({stats.totalListings})
                 </button>
                 <button 
                     className={`tab ${activeTab === 'users' ? 'active' : ''}`}
                     onClick={() => setActiveTab('users')}
                 >
-                    👥 Users
+                    👥 Users ({stats.totalUsers})
                 </button>
                 <button 
                     className={`tab ${activeTab === 'bookings' ? 'active' : ''}`}
                     onClick={() => setActiveTab('bookings')}
                 >
-                    📊 Bookings
-                </button>
-                <button 
-                    className={`tab ${activeTab === 'reports' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('reports')}
-                >
-                    📈 Reports
+                    📊 Bookings ({stats.totalBookings})
                 </button>
             </div>
 
@@ -159,7 +244,8 @@ function AdminDashboard({ user }) {
                                             <h4>{listing.title}</h4>
                                             <p>
                                                 {listing.category} - {listing.location}
-                                                <span className="price-tag">R {listing.price}</span>
+                                                {listing.price && <span className="price-tag">R {listing.price}</span>}
+                                                {!listing.price && <span className="price-tag" style={{background: '#f8d7da', color: '#721c24'}}>No Price</span>}
                                             </p>
                                             <div className="listing-meta">
                                                 <span className={`status ${listing.verified ? 'verified' : 'unverified'}`}>
@@ -200,7 +286,40 @@ function AdminDashboard({ user }) {
                 {activeTab === 'users' && (
                     <div className="section">
                         <h3>👥 Manage Users</h3>
-                        <p className="coming-soon">User management coming soon...</p>
+                        {loading ? (
+                            <div className="loading">Loading users...</div>
+                        ) : users.length === 0 ? (
+                            <p className="no-data">No users found</p>
+                        ) : (
+                            <div className="admin-users">
+                                {users.map(userData => (
+                                    <div key={userData.id || userData.uid} className="admin-user-item">
+                                        <div className="user-info">
+                                            <h4>{userData.name || userData.email || 'Unknown'}</h4>
+                                            <p>{userData.email}</p>
+                                            <div className="user-meta">
+                                                <span className={`role-badge ${userData.role || 'tourist'}`}>
+                                                    {userData.role || 'tourist'}
+                                                </span>
+                                                <span className="user-id">ID: {userData.uid?.substring(0, 8) || 'N/A'}</span>
+                                            </div>
+                                        </div>
+                                        <div className="user-actions">
+                                            <select 
+                                                value={userData.role || 'tourist'}
+                                                onChange={(e) => handleUpdateUserRole(userData.uid, e.target.value)}
+                                                className="role-select"
+                                            >
+                                                <option value="tourist">Tourist</option>
+                                                <option value="provider">Provider</option>
+                                                <option value="waste_sorter">Waste Sorter</option>
+                                                <option value="admin">Admin</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -214,7 +333,7 @@ function AdminDashboard({ user }) {
                         ) : (
                             <div className="admin-bookings">
                                 {bookings.map(booking => (
-                                    <div key={booking.id} className="booking-item">
+                                    <div key={booking.id} className="admin-booking-item">
                                         <div className="booking-info">
                                             <h4>{booking.listingTitle || 'Unknown'}</h4>
                                             <p>
@@ -222,57 +341,49 @@ function AdminDashboard({ user }) {
                                                 Provider: {booking.providerName || 'Unknown'}
                                             </p>
                                             <div className="booking-meta">
-                                                <span className={`status ${booking.status || 'pending'}`}>
+                                                <span 
+                                                    className="status" 
+                                                    style={{ background: getStatusColor(booking.status), color: 'white', padding: '2px 10px', borderRadius: '12px', fontSize: '12px' }}
+                                                >
                                                     {booking.status || 'pending'}
                                                 </span>
-                                                <span>R {booking.totalPrice}</span>
+                                                <span>R {booking.totalPrice?.toFixed(2) || '0.00'}</span>
                                                 <span>
-                                                    {new Date(booking.startDate?.toDate?.() || booking.startDate).toLocaleDateString()}
+                                                    {booking.startDate ? new Date(booking.startDate).toLocaleDateString() : 'N/A'}
                                                 </span>
+                                                <span>Guests: {booking.guests || 1}</span>
                                             </div>
+                                        </div>
+                                        <div className="booking-actions">
+                                            {booking.status === 'pending' && (
+                                                <>
+                                                    <button 
+                                                        className="confirm-btn"
+                                                        onClick={() => handleUpdateBookingStatus(booking.id, 'confirmed')}
+                                                    >
+                                                        ✅ Confirm
+                                                    </button>
+                                                    <button 
+                                                        className="cancel-btn"
+                                                        onClick={() => handleUpdateBookingStatus(booking.id, 'cancelled')}
+                                                    >
+                                                        ❌ Cancel
+                                                    </button>
+                                                </>
+                                            )}
+                                            {booking.status === 'confirmed' && (
+                                                <button 
+                                                    className="complete-btn"
+                                                    onClick={() => handleUpdateBookingStatus(booking.id, 'completed')}
+                                                >
+                                                    ✅ Complete
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
                                 ))}
                             </div>
                         )}
-                    </div>
-                )}
-
-                {activeTab === 'reports' && (
-                    <div className="section">
-                        <h3>📈 Reports</h3>
-                        <div className="reports-grid">
-                            <div className="report-card">
-                                <h4>📋 Listings by Category</h4>
-                                <div className="report-content">
-                                    {Object.entries(
-                                        listings.reduce((acc, l) => {
-                                            acc[l.category] = (acc[l.category] || 0) + 1;
-                                            return acc;
-                                        }, {})
-                                    ).map(([category, count]) => (
-                                        <div key={category}>
-                                            {category}: {count}
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                            <div className="report-card">
-                                <h4>📊 Booking Status</h4>
-                                <div className="report-content">
-                                    {Object.entries(
-                                        bookings.reduce((acc, b) => {
-                                            acc[b.status] = (acc[b.status] || 0) + 1;
-                                            return acc;
-                                        }, {})
-                                    ).map(([status, count]) => (
-                                        <div key={status}>
-                                            {status}: {count}
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
                     </div>
                 )}
             </div>

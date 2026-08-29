@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getListings } from '../../services/firebaseServices';
+import { getListings, getBookings } from '../../services/firebaseServices';
 import Toast from '../Common/Toast';
 import WriteReview from '../Reviews/WriteReview';
 import './Dashboard.css';
@@ -21,9 +21,12 @@ function TouristDashboard({ user }) {
     const [bookingLoading, setBookingLoading] = useState(false);
     const [showReview, setShowReview] = useState(false);
     const [selectedListingForReview, setSelectedListingForReview] = useState(null);
+    const [myBookings, setMyBookings] = useState([]);
+    const [bookingCount, setBookingCount] = useState(0);
 
     useEffect(() => {
         loadListings();
+        loadMyBookings();
     }, []);
 
     const loadListings = async () => {
@@ -32,10 +35,12 @@ function TouristDashboard({ user }) {
             const result = await getListings({ available: true });
             
             if (result.success) {
-                const validListings = (result.data || []).filter(listing => 
-                    listing.price && parseFloat(listing.price) > 0
+                // Filter out listings where the user is the provider (they can't book their own)
+                const allListings = result.data || [];
+                const filteredListings = allListings.filter(listing => 
+                    listing.providerId !== user?.uid
                 );
-                setListings(validListings);
+                setListings(filteredListings);
             } else {
                 console.error('Error loading listings:', result.error);
                 setToast({ 
@@ -52,9 +57,31 @@ function TouristDashboard({ user }) {
         setLoading(false);
     };
 
+    const loadMyBookings = async () => {
+        if (!user) return;
+        try {
+            const result = await getBookings({ touristId: user.uid });
+            if (result.success) {
+                setMyBookings(result.data || []);
+                setBookingCount(result.data?.length || 0);
+            }
+        } catch (error) {
+            console.error('Error loading bookings:', error);
+        }
+    };
+
     const handleBookNow = (listing) => {
         if (!user) {
             setToast({ message: 'Please login to book', type: 'error' });
+            return;
+        }
+        
+        // Check if user is trying to book their own listing
+        if (listing.providerId === user.uid) {
+            setToast({ 
+                message: 'You cannot book your own listing', 
+                type: 'error' 
+            });
             return;
         }
         
@@ -211,6 +238,7 @@ function TouristDashboard({ user }) {
                     endTime: '11:00',
                     guests: 1
                 });
+                loadMyBookings(); // Refresh booking count
             } else {
                 setToast({ 
                     message: result.error || 'Failed to create booking. Please try again.', 
@@ -250,6 +278,26 @@ function TouristDashboard({ user }) {
                 <span className="role-badge">Tourist</span>
             </div>
 
+            {/* My Bookings Stats */}
+            <div className="stats-grid">
+                <div className="stat-card">
+                    <h4>📊 My Bookings</h4>
+                    <div className="stat-number">{bookingCount}</div>
+                </div>
+                <div className="stat-card">
+                    <h4>🌍 Available</h4>
+                    <div className="stat-number">{listings.length}</div>
+                </div>
+                {bookingCount > 0 && (
+                    <div className="stat-card">
+                        <h4>⭐ Completed</h4>
+                        <div className="stat-number">
+                            {myBookings.filter(b => b.status === 'completed').length}
+                        </div>
+                    </div>
+                )}
+            </div>
+
             <div className="filter-section">
                 <button 
                     className={`filter-btn ${filter === 'all' ? 'active' : ''}`}
@@ -285,7 +333,7 @@ function TouristDashboard({ user }) {
 
             <div className="dashboard-content">
                 <div className="section">
-                    <h3>🌍 Available Experiences ({filteredListings.length})</h3>
+                    <h3>🌍 Available Experiences</h3>
                     {loading ? (
                         <div className="loading">Loading experiences...</div>
                     ) : filteredListings.length === 0 ? (
@@ -300,6 +348,7 @@ function TouristDashboard({ user }) {
                             {filteredListings.map(listing => {
                                 const isNight = listing.durationType === 'night' || listing.category === 'lodging';
                                 const price = listing.price ? parseFloat(listing.price).toFixed(2) : '0.00';
+                                const isOwnListing = listing.providerId === user?.uid;
                                 return (
                                     <div key={listing.id} className="listing-card">
                                         {listing.imageUrl && (
@@ -312,6 +361,9 @@ function TouristDashboard({ user }) {
                                                 <span className="category-badge">{listing.category}</span>
                                                 {listing.verified && (
                                                     <span className="verified-badge">✅ Verified</span>
+                                                )}
+                                                {isOwnListing && (
+                                                    <span className="own-listing-badge">📌 Your Listing</span>
                                                 )}
                                             </div>
                                             <h4>{listing.title}</h4>
@@ -338,9 +390,10 @@ function TouristDashboard({ user }) {
                                                 <button 
                                                     className="book-btn"
                                                     onClick={() => handleBookNow(listing)}
-                                                    disabled={!listing.price || parseFloat(listing.price) <= 0}
+                                                    disabled={!listing.price || parseFloat(listing.price) <= 0 || isOwnListing}
                                                 >
-                                                    {!listing.price || parseFloat(listing.price) <= 0 ? 
+                                                    {isOwnListing ? '📌 Your Listing' :
+                                                     !listing.price || parseFloat(listing.price) <= 0 ? 
                                                         '⚠️ Invalid Price' : 
                                                         '📅 Book Now'}
                                                 </button>
