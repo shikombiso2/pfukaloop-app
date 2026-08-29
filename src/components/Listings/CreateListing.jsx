@@ -177,30 +177,47 @@ function CreateListing({ onListingCreated }) {
         }
 
         // Validate pricing based on category
+        let hasValidPrice = false;
+        let priceValue = 0;
+        
         if (formData.category === 'lodging') {
-            const hasValidRoom = formData.roomTypes.some(r => r.name && r.price);
-            if (!hasValidRoom) {
+            const validRooms = formData.roomTypes.filter(r => r.name && r.price);
+            if (validRooms.length === 0) {
                 setToast({ message: 'Please add at least one room type with name and price', type: 'error' });
                 return;
             }
+            // Get the first room's price as the main price
+            priceValue = parseFloat(validRooms[0].price) || 0;
+            hasValidPrice = priceValue > 0;
         } else if (formData.category === 'food') {
-            const hasValidItem = formData.menuItems.some(m => m.name && m.price);
-            if (!hasValidItem) {
+            const validItems = formData.menuItems.filter(m => m.name && m.price);
+            if (validItems.length === 0) {
                 setToast({ message: 'Please add at least one menu item with name and price', type: 'error' });
                 return;
             }
+            priceValue = parseFloat(validItems[0].price) || 0;
+            hasValidPrice = priceValue > 0;
         } else if (formData.category === 'guide') {
-            const hasValidTour = formData.tourTypes.some(t => t.name && t.price);
-            if (!hasValidTour) {
+            const validTours = formData.tourTypes.filter(t => t.name && t.price);
+            if (validTours.length === 0) {
                 setToast({ message: 'Please add at least one tour type with name and price', type: 'error' });
                 return;
             }
+            priceValue = parseFloat(validTours[0].price) || 0;
+            hasValidPrice = priceValue > 0;
         } else if (formData.category === 'craft') {
-            const hasValidItem = formData.craftItems.some(c => c.name && c.price);
-            if (!hasValidItem) {
+            const validItems = formData.craftItems.filter(c => c.name && c.price);
+            if (validItems.length === 0) {
                 setToast({ message: 'Please add at least one craft item with name and price', type: 'error' });
                 return;
             }
+            priceValue = parseFloat(validItems[0].price) || 0;
+            hasValidPrice = priceValue > 0;
+        }
+
+        if (!hasValidPrice || priceValue <= 0) {
+            setToast({ message: 'Please enter a valid price greater than 0', type: 'error' });
+            return;
         }
 
         setLoading(true);
@@ -221,40 +238,56 @@ function CreateListing({ onListingCreated }) {
 
             // Prepare data based on category
             let pricingData = {};
+            let durationType = 'night';
             
             if (formData.category === 'lodging') {
+                durationType = 'night';
                 pricingData = {
-                    durationType: 'night',
                     roomTypes: formData.roomTypes.filter(r => r.name && r.price)
                 };
             } else if (formData.category === 'food') {
+                durationType = 'menu';
                 pricingData = {
-                    durationType: 'menu',
                     menuItems: formData.menuItems.filter(m => m.name && m.price)
                 };
             } else if (formData.category === 'guide') {
+                durationType = 'tour';
                 pricingData = {
-                    durationType: 'tour',
                     tourTypes: formData.tourTypes.filter(t => t.name && t.price)
                 };
             } else if (formData.category === 'craft') {
+                durationType = 'item';
                 pricingData = {
-                    durationType: 'item',
                     craftItems: formData.craftItems.filter(c => c.name && c.price)
                 };
             }
 
-            const result = await createListing({
-                ...formData,
+            // Prepare the data to send
+            const listingData = {
+                title: formData.title,
+                description: formData.description,
+                category: formData.category,
+                subCategory: formData.subCategory,
+                price: priceValue, // This is the main price
+                location: formData.location,
+                imageUrl: imageUrl,
+                amenities: formData.amenities.filter(a => a.trim() !== ''),
+                capacity: formData.capacity ? parseInt(formData.capacity) : null,
+                available: formData.available,
                 providerId: userData.uid,
                 providerName: userData.name,
-                capacity: formData.capacity ? parseInt(formData.capacity) : null,
-                amenities: formData.amenities.filter(a => a.trim() !== ''),
-                imageUrl: imageUrl,
-                imageFile: formData.imageFile ? formData.imageFile.name : null,
+                durationType: durationType,
                 ...pricingData,
-                price: formData.price
-            });
+                // Also store roomTypes directly for easy access
+                roomTypes: formData.category === 'lodging' ? formData.roomTypes.filter(r => r.name && r.price) : [],
+                menuItems: formData.category === 'food' ? formData.menuItems.filter(m => m.name && m.price) : [],
+                tourTypes: formData.category === 'guide' ? formData.tourTypes.filter(t => t.name && t.price) : [],
+                craftItems: formData.category === 'craft' ? formData.craftItems.filter(c => c.name && c.price) : []
+            };
+
+            console.log('Creating listing with data:', listingData);
+
+            const result = await createListing(listingData);
 
             if (result.success) {
                 setToast({ message: '✅ Listing created successfully!', type: 'success' });
@@ -278,7 +311,6 @@ function CreateListing({ onListingCreated }) {
                 });
                 document.getElementById('image-upload').value = '';
                 
-                // Call the callback to switch to listings view
                 if (onListingCreated) {
                     onListingCreated();
                 }
@@ -314,7 +346,7 @@ function CreateListing({ onListingCreated }) {
                                         />
                                     </div>
                                     <div className="form-group">
-                                        <label>Price (ZAR/night)</label>
+                                        <label>Price (ZAR/night) *</label>
                                         <input
                                             type="number"
                                             value={room.price}
@@ -322,6 +354,7 @@ function CreateListing({ onListingCreated }) {
                                             placeholder="0.00"
                                             min="0"
                                             step="0.01"
+                                            required
                                         />
                                     </div>
                                 </div>
@@ -373,7 +406,7 @@ function CreateListing({ onListingCreated }) {
                                         />
                                     </div>
                                     <div className="form-group">
-                                        <label>Price (ZAR)</label>
+                                        <label>Price (ZAR) *</label>
                                         <input
                                             type="number"
                                             value={item.price}
@@ -381,6 +414,7 @@ function CreateListing({ onListingCreated }) {
                                             placeholder="0.00"
                                             min="0"
                                             step="0.01"
+                                            required
                                         />
                                     </div>
                                 </div>
@@ -431,7 +465,7 @@ function CreateListing({ onListingCreated }) {
                                 </div>
                                 <div className="form-row">
                                     <div className="form-group">
-                                        <label>Price (ZAR)</label>
+                                        <label>Price (ZAR) *</label>
                                         <input
                                             type="number"
                                             value={tour.price}
@@ -439,6 +473,7 @@ function CreateListing({ onListingCreated }) {
                                             placeholder="0.00"
                                             min="0"
                                             step="0.01"
+                                            required
                                         />
                                     </div>
                                     <div className="form-group">
@@ -501,7 +536,7 @@ function CreateListing({ onListingCreated }) {
                                         />
                                     </div>
                                     <div className="form-group">
-                                        <label>Price (ZAR)</label>
+                                        <label>Price (ZAR) *</label>
                                         <input
                                             type="number"
                                             value={item.price}
@@ -509,6 +544,7 @@ function CreateListing({ onListingCreated }) {
                                             placeholder="0.00"
                                             min="0"
                                             step="0.01"
+                                            required
                                         />
                                     </div>
                                 </div>
