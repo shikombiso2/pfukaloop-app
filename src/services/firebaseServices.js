@@ -12,8 +12,6 @@ import {
     where, 
     orderBy, 
     serverTimestamp,
-    arrayUnion,
-    arrayRemove,
     onSnapshot,
     increment
 } from '../firebase/config';
@@ -57,6 +55,7 @@ export const createListing = async (data) => {
         const docRef = await addDoc(collection(db, 'listings'), {
             ...data,
             providerId: data.providerId || auth.currentUser?.uid,
+            providerName: data.providerName || auth.currentUser?.displayName || 'Provider',
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
             available: true,
@@ -75,56 +74,42 @@ export const createListing = async (data) => {
 
 export const getListings = async (filters = {}) => {
     try {
-        let constraints = [];
+        // Simple query without orderBy to avoid index requirement
+        const querySnapshot = await getDocs(collection(db, 'listings'));
+        const listings = [];
+        querySnapshot.forEach((doc) => {
+            listings.push({ id: doc.id, ...doc.data() });
+        });
         
-        // Only add where clauses if they exist
+        // Sort by createdAt client-side (newest first)
+        listings.sort((a, b) => {
+            const dateA = a.createdAt?.toDate?.() || new Date(a.createdAt || 0);
+            const dateB = b.createdAt?.toDate?.() || new Date(b.createdAt || 0);
+            return dateB - dateA;
+        });
+        
+        // Apply filters client-side
+        let filteredListings = listings;
+        
         if (filters.category) {
-            constraints.push(where('category', '==', filters.category));
+            filteredListings = filteredListings.filter(l => l.category === filters.category);
         }
         if (filters.location) {
-            constraints.push(where('location', '==', filters.location));
+            filteredListings = filteredListings.filter(l => l.location === filters.location);
         }
         if (filters.providerId) {
-            constraints.push(where('providerId', '==', filters.providerId));
+            filteredListings = filteredListings.filter(l => l.providerId === filters.providerId);
         }
-        
-        // Only filter by available if explicitly set
         if (filters.available !== undefined) {
-            constraints.push(where('available', '==', filters.available));
+            filteredListings = filteredListings.filter(l => l.available === filters.available);
+        }
+        if (filters.verified !== undefined) {
+            filteredListings = filteredListings.filter(l => l.verified === filters.verified);
         }
         
-        // Only add orderBy if we have at least one where clause
-        // or if we want to order without filters
-        if (constraints.length > 0) {
-            constraints.push(orderBy('createdAt', 'desc'));
-            const q = query(collection(db, 'listings'), ...constraints);
-            const querySnapshot = await getDocs(q);
-            const listings = [];
-            querySnapshot.forEach((doc) => {
-                listings.push({ id: doc.id, ...doc.data() });
-            });
-            return { success: true, data: listings };
-        } else {
-            // If no filters, just get all listings ordered by createdAt
-            const q = query(collection(db, 'listings'), orderBy('createdAt', 'desc'));
-            const querySnapshot = await getDocs(q);
-            const listings = [];
-            querySnapshot.forEach((doc) => {
-                listings.push({ id: doc.id, ...doc.data() });
-            });
-            return { success: true, data: listings };
-        }
+        return { success: true, data: filteredListings };
     } catch (error) {
         console.error('Error getting listings:', error);
-        // If it's an index error, return a helpful message
-        if (error.code === 'failed-precondition' || error.message.includes('index')) {
-            return { 
-                success: false, 
-                error: 'Please create the required index in Firebase Console',
-                needsIndex: true,
-                message: error.message
-            };
-        }
         return { success: false, error: error.message };
     }
 };
@@ -175,23 +160,58 @@ export const deleteListing = async (listingId) => {
 
 export const createBooking = async (data) => {
     try {
-        const docRef = await addDoc(collection(db, 'bookings'), {
-            ...data,
+        // Ensure all required fields are present
+        const bookingData = {
+            listingId: data.listingId,
+            providerId: data.providerId,
+            listingTitle: data.listingTitle || 'Unknown',
+            startDate: data.startDate,
+            endDate: data.endDate || data.startDate,
+            startTime: data.startTime || null,
+            endTime: data.endTime || null,
+            durationType: data.durationType || 'night',
+            quantity: data.quantity || 1,
+            guests: parseInt(data.guests) || 1,
+            totalPrice: parseFloat(data.totalPrice) || 0,
+            pricePerUnit: parseFloat(data.pricePerUnit) || 0,
             touristId: data.touristId || auth.currentUser?.uid,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
+            touristName: data.touristName || auth.currentUser?.displayName || 'Guest',
+            providerName: data.providerName || 'Provider',
             status: 'pending',
-            paymentStatus: 'pending'
-        });
+            paymentStatus: 'pending',
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp()
+        };
+
+        // Validate required fields
+        if (!bookingData.listingId) {
+            return { success: false, error: 'Listing ID is required' };
+        }
+        if (!bookingData.providerId) {
+            return { success: false, error: 'Provider ID is required' };
+        }
+        if (!bookingData.startDate) {
+            return { success: false, error: 'Start date is required' };
+        }
+        if (bookingData.totalPrice <= 0) {
+            return { success: false, error: 'Invalid total price' };
+        }
+
+        const docRef = await addDoc(collection(db, 'bookings'), bookingData);
         
-        await updateDoc(doc(db, 'listings', data.listingId), {
-            bookings: increment(1)
-        });
+        // Update listing bookings count
+        try {
+            await updateDoc(doc(db, 'listings', data.listingId), {
+                bookings: increment(1)
+            });
+        } catch (updateError) {
+            console.warn('Could not update listing count:', updateError);
+        }
         
         return { success: true, id: docRef.id };
     } catch (error) {
         console.error('Error creating booking:', error);
-        return { success: false, error: error.message };
+        return { success: false, error: error.message || 'Failed to create booking' };
     }
 };
 
@@ -209,21 +229,33 @@ export const getBookings = async (filters = {}) => {
             constraints.push(where('status', '==', filters.status));
         }
         
-        constraints.push(orderBy('createdAt', 'desc'));
+        // If no filters, get all bookings (admin)
+        let q;
+        if (constraints.length === 0) {
+            q = collection(db, 'bookings');
+        } else {
+            q = query(collection(db, 'bookings'), ...constraints);
+        }
         
-        const q = query(collection(db, 'bookings'), ...constraints);
         const querySnapshot = await getDocs(q);
         const bookings = [];
         querySnapshot.forEach((doc) => {
             bookings.push({ id: doc.id, ...doc.data() });
         });
+        
+        // Sort by createdAt descending
+        bookings.sort((a, b) => {
+            const dateA = a.createdAt?.toDate?.() || new Date(a.createdAt || 0);
+            const dateB = b.createdAt?.toDate?.() || new Date(b.createdAt || 0);
+            return dateB - dateA;
+        });
+        
         return { success: true, data: bookings };
     } catch (error) {
         console.error('Error getting bookings:', error);
         return { success: false, error: error.message };
     }
 };
-
 export const updateBookingStatus = async (bookingId, status) => {
     try {
         await updateDoc(doc(db, 'bookings', bookingId), {
@@ -232,7 +264,7 @@ export const updateBookingStatus = async (bookingId, status) => {
         });
         return { success: true };
     } catch (error) {
-        console.error('Error updating booking:', error);
+        console.error('Error updating booking status:', error);
         return { success: false, error: error.message };
     }
 };
@@ -246,6 +278,7 @@ export const createReview = async (data) => {
         const docRef = await addDoc(collection(db, 'reviews'), {
             ...data,
             reviewerId: data.reviewerId || auth.currentUser?.uid,
+            reviewerName: data.reviewerName || auth.currentUser?.displayName || 'Anonymous',
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
             helpful: 0
@@ -289,6 +322,71 @@ export const getReviews = async (listingId) => {
         return { success: false, error: error.message };
     }
 };
+// ============================================
+// NOTIFICATION SERVICES
+// ============================================
+
+export const addNotification = async (data) => {
+    try {
+        const docRef = await addDoc(collection(db, 'notifications'), {
+            ...data,
+            read: false,
+            createdAt: serverTimestamp()
+        });
+        return { success: true, id: docRef.id };
+    } catch (error) {
+        console.error('Error adding notification:', error);
+        return { success: false, error: error.message };
+    }
+};
+
+export const getNotifications = async (userId) => {
+    try {
+        const q = query(
+            collection(db, 'notifications'),
+            where('userId', '==', userId),
+            orderBy('createdAt', 'desc')
+        );
+        const querySnapshot = await getDocs(q);
+        const notifications = [];
+        querySnapshot.forEach((doc) => {
+            notifications.push({ id: doc.id, ...doc.data() });
+        });
+        return { success: true, data: notifications };
+    } catch (error) {
+        console.error('Error getting notifications:', error);
+        return { success: false, error: error.message };
+    }
+};
+
+export const markNotificationRead = async (notificationId) => {
+    try {
+        await updateDoc(doc(db, 'notifications', notificationId), {
+            read: true,
+            updatedAt: serverTimestamp()
+        });
+        return { success: true };
+    } catch (error) {
+        console.error('Error marking notification read:', error);
+        return { success: false, error: error.message };
+    }
+};
+
+export const markAllNotificationsRead = async (userId) => {
+    try {
+        const notifications = await getNotifications(userId);
+        if (notifications.success) {
+            const promises = notifications.data
+                .filter(n => !n.read)
+                .map(n => markNotificationRead(n.id));
+            await Promise.all(promises);
+        }
+        return { success: true };
+    } catch (error) {
+        console.error('Error marking all notifications read:', error);
+        return { success: false, error: error.message };
+    }
+};
 
 // ============================================
 // WASTE LOG SERVICES
@@ -299,6 +397,7 @@ export const createWasteLog = async (data) => {
         const docRef = await addDoc(collection(db, 'wasteLogs'), {
             ...data,
             sorterId: data.sorterId || auth.currentUser?.uid,
+            sorterName: data.sorterName || auth.currentUser?.displayName || 'Sorter',
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp()
         });
@@ -331,52 +430,6 @@ export const getWasteLogs = async (filters = {}) => {
         return { success: true, data: logs };
     } catch (error) {
         console.error('Error getting waste logs:', error);
-        return { success: false, error: error.message };
-    }
-};
-
-// ============================================
-// WILDLIFE SIGHTING SERVICES
-// ============================================
-
-export const createSighting = async (data) => {
-    try {
-        const docRef = await addDoc(collection(db, 'sightings'), {
-            ...data,
-            monitorId: data.monitorId || auth.currentUser?.uid,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-            verified: false
-        });
-        return { success: true, id: docRef.id };
-    } catch (error) {
-        console.error('Error creating sighting:', error);
-        return { success: false, error: error.message };
-    }
-};
-
-export const getSightings = async (filters = {}) => {
-    try {
-        let constraints = [];
-        
-        if (filters.monitorId) {
-            constraints.push(where('monitorId', '==', filters.monitorId));
-        }
-        if (filters.verified !== undefined) {
-            constraints.push(where('verified', '==', filters.verified));
-        }
-        
-        constraints.push(orderBy('createdAt', 'desc'));
-        
-        const q = query(collection(db, 'sightings'), ...constraints);
-        const querySnapshot = await getDocs(q);
-        const sightings = [];
-        querySnapshot.forEach((doc) => {
-            sightings.push({ id: doc.id, ...doc.data() });
-        });
-        return { success: true, data: sightings };
-    } catch (error) {
-        console.error('Error getting sightings:', error);
         return { success: false, error: error.message };
     }
 };
@@ -451,39 +504,6 @@ export const processPayment = async (bookingId, paymentData) => {
         return { success: true };
     } catch (error) {
         console.error('Error processing payment:', error);
-        return { success: false, error: error.message };
-    }
-};
-
-// ============================================
-// UTILITY SERVICES
-// ============================================
-
-export const getCollectionData = async (collectionName, filters = {}) => {
-    try {
-        let constraints = [];
-        
-        Object.entries(filters).forEach(([key, value]) => {
-            if (key !== 'orderBy') {
-                constraints.push(where(key, '==', value));
-            }
-        });
-        
-        if (filters.orderBy) {
-            constraints.push(orderBy(filters.orderBy.field, filters.orderBy.direction || 'desc'));
-        } else {
-            constraints.push(orderBy('createdAt', 'desc'));
-        }
-        
-        const q = query(collection(db, collectionName), ...constraints);
-        const querySnapshot = await getDocs(q);
-        const data = [];
-        querySnapshot.forEach((doc) => {
-            data.push({ id: doc.id, ...doc.data() });
-        });
-        return { success: true, data };
-    } catch (error) {
-        console.error('Error getting collection data:', error);
         return { success: false, error: error.message };
     }
 };

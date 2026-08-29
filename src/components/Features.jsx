@@ -17,11 +17,6 @@ function Features() {
             icon: '♻️',
             title: 'Waste Management',
             description: 'Track waste sorting, composting, and upcycling to keep hubs clean and green.'
-        },
-        {
-            icon: '📷',
-            title: 'Wildlife Monitoring',
-            description: 'Camera traps and community reports protect biodiversity in real-time.'
         }
     ];
 

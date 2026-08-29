@@ -70,11 +70,6 @@ function Login() {
                 <div className="form-footer">
                     Don't have an account? <Link to="/register">Sign up</Link>
                 </div>
-                <div className="demo-hint">
-                    <strong>Demo accounts:</strong><br />
-                    <small>tourist@pfukaloop.com / pass123</small><br />
-                    <small>lodge@pfukaloop.com / pass123</small>
-                </div>
             </div>
             {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
         </div>

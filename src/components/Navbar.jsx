@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import NotificationBell from './Notifications/NotificationBell';
 import './Navbar.css';
 
 function Navbar() {
@@ -21,8 +22,9 @@ function Navbar() {
             <div className="nav-links">
                 {currentUser ? (
                     <>
-                        <span className="welcome-msg">👤 {currentUser.name}</span>
-                        <span className="role-badge">{currentUser.role}</span>
+                        <NotificationBell />
+                        <span className="welcome-msg">👤 {currentUser.displayName || currentUser.email}</span>
+                        <span className="role-badge">{currentUser.role || 'User'}</span>
                         <button onClick={handleLogout} className="btn-danger">
                             Logout
                         </button>

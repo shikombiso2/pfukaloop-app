@@ -46,7 +46,6 @@ function Dashboard() {
 
     return (
         <div className="dashboard-page">
-            {/* Remove the RoleDebugger here */}
             {renderDashboard()}
         </div>
     );

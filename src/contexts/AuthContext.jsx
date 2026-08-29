@@ -22,14 +22,12 @@ export function AuthProvider({ children }) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    // Listen for auth state changes
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
             setLoading(true);
             try {
                 if (user) {
                     setCurrentUser(user);
-                    // Fetch user data from Firestore
                     const userDocRef = doc(db, 'users', user.uid);
                     const userDoc = await getDoc(userDocRef);
                     
@@ -41,19 +39,17 @@ export function AuthProvider({ children }) {
                             email: user.email
                         });
                     } else {
-                        // Create user document if it doesn't exist
                         const newUserData = {
                             uid: user.uid,
                             email: user.email,
                             name: user.displayName || user.email?.split('@')[0] || 'User',
-                            role: 'tourist', // Default role
+                            role: 'tourist',
                             createdAt: serverTimestamp(),
                             updatedAt: serverTimestamp(),
                             bookings: [],
                             listings: [],
                             earnings: 0,
                             wasteLogs: [],
-                            sightings: [],
                             profilePicture: null,
                             phoneNumber: null,
                             location: null,
@@ -69,6 +65,8 @@ export function AuthProvider({ children }) {
                 } else {
                     setCurrentUser(null);
                     setUserData(null);
+                    // Clear any stored session
+                    localStorage.removeItem('pfukaloop_user');
                 }
             } catch (error) {
                 console.error('Error fetching user data:', error);
@@ -81,30 +79,25 @@ export function AuthProvider({ children }) {
         return unsubscribe;
     }, []);
 
-    // Register function
     const register = async (name, email, password, role = 'tourist') => {
         try {
             setError(null);
-            // Create user with email and password
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
             const user = userCredential.user;
 
-            // Update display name
             await updateProfile(user, { displayName: name });
 
-            // Create user document in Firestore with the selected role
             const userData = {
                 uid: user.uid,
                 email: user.email,
                 name: name,
-                role: role, // This is the key fix - store the role
+                role: role,
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp(),
                 bookings: [],
                 listings: [],
                 earnings: 0,
                 wasteLogs: [],
-                sightings: [],
                 profilePicture: null,
                 phoneNumber: null,
                 location: null,
@@ -113,7 +106,6 @@ export function AuthProvider({ children }) {
 
             await setDoc(doc(db, 'users', user.uid), userData);
             
-            // Set userData with the role
             setUserData({
                 ...userData,
                 uid: user.uid,
@@ -128,13 +120,11 @@ export function AuthProvider({ children }) {
         }
     };
 
-    // Login function
     const login = async (email, password) => {
         try {
             setError(null);
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
             
-            // Fetch user data from Firestore
             const userDocRef = doc(db, 'users', userCredential.user.uid);
             const userDoc = await getDoc(userDocRef);
             
@@ -155,7 +145,6 @@ export function AuthProvider({ children }) {
                     } 
                 };
             } else {
-                // If no user data exists (shouldn't happen), create it
                 const newUserData = {
                     uid: userCredential.user.uid,
                     email: userCredential.user.email,
@@ -166,8 +155,7 @@ export function AuthProvider({ children }) {
                     bookings: [],
                     listings: [],
                     earnings: 0,
-                    wasteLogs: [],
-                    sightings: []
+                    wasteLogs: []
                 };
                 await setDoc(doc(db, 'users', userCredential.user.uid), newUserData);
                 setUserData(newUserData);
@@ -180,13 +168,13 @@ export function AuthProvider({ children }) {
         }
     };
 
-    // Logout function
     const logout = async () => {
         try {
             setError(null);
             await signOut(auth);
             setCurrentUser(null);
             setUserData(null);
+            localStorage.removeItem('pfukaloop_user');
             return { success: true };
         } catch (error) {
             console.error('Logout error:', error);
@@ -195,7 +183,6 @@ export function AuthProvider({ children }) {
         }
     };
 
-    // Update user data function
     const updateUserData = async (data) => {
         try {
             if (!currentUser) throw new Error('No user logged in');

@@ -3,24 +3,36 @@ import { getListings } from '../../services/firebaseServices';
 import ListingCard from './ListingCard';
 import './Listing.css';
 
-function ListingList({ filters = {} }) {
+function ListingList({ filters = {}, key }) {
     const [listings, setListings] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
     useEffect(() => {
         loadListings();
-    }, [filters]);
+    }, [filters.providerId, key]); // Added key to dependency array
 
     const loadListings = async () => {
         setLoading(true);
         setError(null);
-        const result = await getListings(filters);
         
-        if (result.success) {
-            setListings(result.data);
-        } else {
-            setError(result.error || 'Failed to load listings');
+        try {
+            const result = await getListings({});
+            
+            if (result.success) {
+                let filteredData = result.data;
+                if (filters.providerId) {
+                    filteredData = filteredData.filter(
+                        listing => listing.providerId === filters.providerId
+                    );
+                }
+                setListings(filteredData);
+            } else {
+                setError(result.error || 'Failed to load listings');
+            }
+        } catch (error) {
+            console.error('Error loading listings:', error);
+            setError('Failed to load listings. Please try again.');
         }
         setLoading(false);
     };
@@ -31,18 +43,45 @@ function ListingList({ filters = {} }) {
 
     if (error) {
         return (
-            <div className="error-container">
-                <p>Error: {error}</p>
-                <button className="btn-primary" onClick={loadListings}>Retry</button>
+            <div className="error-container" style={{ 
+                background: '#fff3cd', 
+                border: '1px solid #ffc107',
+                borderRadius: '8px',
+                padding: '20px',
+                textAlign: 'center'
+            }}>
+                <p style={{ color: '#856404', marginBottom: '12px' }}>
+                    ⚠️ {error}
+                </p>
+                <button 
+                    className="btn-primary" 
+                    onClick={loadListings}
+                    style={{ marginTop: '8px' }}
+                >
+                    🔄 Retry
+                </button>
             </div>
         );
     }
 
     if (listings.length === 0) {
         return (
-            <div className="no-listings">
-                <p>No listings found. Create your first listing!</p>
-                <button className="btn-primary" onClick={loadListings}>Refresh</button>
+            <div className="no-listings" style={{ 
+                textAlign: 'center', 
+                padding: '40px 0',
+                color: '#5a7a6a'
+            }}>
+                <p style={{ fontSize: '16px' }}>No listings found</p>
+                <p style={{ fontSize: '14px', color: '#95a5a6', marginTop: '8px' }}>
+                    Create your first listing to get started!
+                </p>
+                <button 
+                    className="btn-primary" 
+                    onClick={loadListings}
+                    style={{ marginTop: '16px' }}
+                >
+                    🔄 Refresh
+                </button>
             </div>
         );
     }
