@@ -52,26 +52,69 @@ export const updateUserData = async (uid, data) => {
 
 export const createListing = async (data) => {
     try {
-        const docRef = await addDoc(collection(db, 'listings'), {
-            ...data,
+        // Ensure price is properly set
+        let priceValue = parseFloat(data.price) || 0;
+        
+        // If price is 0, try to get it from roomTypes, menuItems, etc.
+        if (priceValue === 0) {
+            if (data.roomTypes && data.roomTypes.length > 0) {
+                priceValue = parseFloat(data.roomTypes[0].price) || 0;
+            } else if (data.menuItems && data.menuItems.length > 0) {
+                priceValue = parseFloat(data.menuItems[0].price) || 0;
+            } else if (data.tourTypes && data.tourTypes.length > 0) {
+                priceValue = parseFloat(data.tourTypes[0].price) || 0;
+            } else if (data.craftItems && data.craftItems.length > 0) {
+                priceValue = parseFloat(data.craftItems[0].price) || 0;
+            }
+        }
+
+        const listingData = {
+            title: data.title,
+            description: data.description,
+            category: data.category,
+            subCategory: data.subCategory || '',
+            price: priceValue, // Ensure price is set
+            location: data.location,
+            imageUrl: data.imageUrl || '',
+            amenities: data.amenities || [],
+            capacity: data.capacity ? parseInt(data.capacity) : null,
+            available: data.available !== undefined ? data.available : true,
             providerId: data.providerId || auth.currentUser?.uid,
             providerName: data.providerName || auth.currentUser?.displayName || 'Provider',
+            durationType: data.durationType || 'night',
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
-            available: true,
             verified: false,
             views: 0,
             bookings: 0,
             rating: 0,
             totalReviews: 0
-        });
+        };
+
+        // Add category-specific data
+        if (data.roomTypes && data.roomTypes.length > 0) {
+            listingData.roomTypes = data.roomTypes;
+        }
+        if (data.menuItems && data.menuItems.length > 0) {
+            listingData.menuItems = data.menuItems;
+        }
+        if (data.tourTypes && data.tourTypes.length > 0) {
+            listingData.tourTypes = data.tourTypes;
+        }
+        if (data.craftItems && data.craftItems.length > 0) {
+            listingData.craftItems = data.craftItems;
+        }
+
+        console.log('Saving listing with price:', priceValue);
+        console.log('Full listing data:', listingData);
+
+        const docRef = await addDoc(collection(db, 'listings'), listingData);
         return { success: true, id: docRef.id };
     } catch (error) {
         console.error('Error creating listing:', error);
         return { success: false, error: error.message };
     }
 };
-
 
 export const getListings = async (filters = {}) => {
     try {

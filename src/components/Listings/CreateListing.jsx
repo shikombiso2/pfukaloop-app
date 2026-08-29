@@ -163,166 +163,140 @@ function CreateListing({ onListingCreated }) {
         }));
     };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        
-        if (!formData.title || !formData.description || !formData.location) {
-            setToast({ message: 'Please fill in all required fields', type: 'error' });
+   const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!formData.title || !formData.description || !formData.location) {
+        setToast({ message: 'Please fill in all required fields', type: 'error' });
+        return;
+    }
+
+    if (!userData) {
+        setToast({ message: 'Please login to create a listing', type: 'error' });
+        return;
+    }
+
+    // Get price from the appropriate section
+    let priceValue = 0;
+    let pricingData = {};
+    let durationType = 'night';
+    
+    if (formData.category === 'lodging') {
+        const validRooms = formData.roomTypes.filter(r => r.name && r.price);
+        if (validRooms.length === 0) {
+            setToast({ message: 'Please add at least one room type with name and price', type: 'error' });
             return;
         }
-
-        if (!userData) {
-            setToast({ message: 'Please login to create a listing', type: 'error' });
+        priceValue = parseFloat(validRooms[0].price) || 0;
+        durationType = 'night';
+        pricingData = { roomTypes: validRooms };
+    } else if (formData.category === 'food') {
+        const validItems = formData.menuItems.filter(m => m.name && m.price);
+        if (validItems.length === 0) {
+            setToast({ message: 'Please add at least one menu item with name and price', type: 'error' });
             return;
         }
-
-        // Validate pricing based on category
-        let hasValidPrice = false;
-        let priceValue = 0;
-        
-        if (formData.category === 'lodging') {
-            const validRooms = formData.roomTypes.filter(r => r.name && r.price);
-            if (validRooms.length === 0) {
-                setToast({ message: 'Please add at least one room type with name and price', type: 'error' });
-                return;
-            }
-            // Get the first room's price as the main price
-            priceValue = parseFloat(validRooms[0].price) || 0;
-            hasValidPrice = priceValue > 0;
-        } else if (formData.category === 'food') {
-            const validItems = formData.menuItems.filter(m => m.name && m.price);
-            if (validItems.length === 0) {
-                setToast({ message: 'Please add at least one menu item with name and price', type: 'error' });
-                return;
-            }
-            priceValue = parseFloat(validItems[0].price) || 0;
-            hasValidPrice = priceValue > 0;
-        } else if (formData.category === 'guide') {
-            const validTours = formData.tourTypes.filter(t => t.name && t.price);
-            if (validTours.length === 0) {
-                setToast({ message: 'Please add at least one tour type with name and price', type: 'error' });
-                return;
-            }
-            priceValue = parseFloat(validTours[0].price) || 0;
-            hasValidPrice = priceValue > 0;
-        } else if (formData.category === 'craft') {
-            const validItems = formData.craftItems.filter(c => c.name && c.price);
-            if (validItems.length === 0) {
-                setToast({ message: 'Please add at least one craft item with name and price', type: 'error' });
-                return;
-            }
-            priceValue = parseFloat(validItems[0].price) || 0;
-            hasValidPrice = priceValue > 0;
-        }
-
-        if (!hasValidPrice || priceValue <= 0) {
-            setToast({ message: 'Please enter a valid price greater than 0', type: 'error' });
+        priceValue = parseFloat(validItems[0].price) || 0;
+        durationType = 'menu';
+        pricingData = { menuItems: validItems };
+    } else if (formData.category === 'guide') {
+        const validTours = formData.tourTypes.filter(t => t.name && t.price);
+        if (validTours.length === 0) {
+            setToast({ message: 'Please add at least one tour type with name and price', type: 'error' });
             return;
         }
+        priceValue = parseFloat(validTours[0].price) || 0;
+        durationType = 'tour';
+        pricingData = { tourTypes: validTours };
+    } else if (formData.category === 'craft') {
+        const validItems = formData.craftItems.filter(c => c.name && c.price);
+        if (validItems.length === 0) {
+            setToast({ message: 'Please add at least one craft item with name and price', type: 'error' });
+            return;
+        }
+        priceValue = parseFloat(validItems[0].price) || 0;
+        durationType = 'item';
+        pricingData = { craftItems: validItems };
+    }
 
-        setLoading(true);
-        
-        try {
-            let imageUrl = null;
-            if (formData.imagePreview) {
-                imageUrl = formData.imagePreview;
-            } else {
-                const placeholderImages = {
-                    lodging: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400&h=300&fit=crop',
-                    guide: 'https://images.unsplash.com/photo-1585409677983-0f6c41ca9c3b?w=400&h=300&fit=crop',
-                    food: 'https://images.unsplash.com/photo-1552566626-52f8b828add9?w=400&h=300&fit=crop',
-                    craft: 'https://images.unsplash.com/photo-1565608434237-ff63d6f4a633?w=400&h=300&fit=crop'
-                };
-                imageUrl = placeholderImages[formData.category] || placeholderImages.lodging;
-            }
+    if (priceValue <= 0) {
+        setToast({ message: 'Please enter a valid price greater than 0', type: 'error' });
+        return;
+    }
 
-            // Prepare data based on category
-            let pricingData = {};
-            let durationType = 'night';
-            
-            if (formData.category === 'lodging') {
-                durationType = 'night';
-                pricingData = {
-                    roomTypes: formData.roomTypes.filter(r => r.name && r.price)
-                };
-            } else if (formData.category === 'food') {
-                durationType = 'menu';
-                pricingData = {
-                    menuItems: formData.menuItems.filter(m => m.name && m.price)
-                };
-            } else if (formData.category === 'guide') {
-                durationType = 'tour';
-                pricingData = {
-                    tourTypes: formData.tourTypes.filter(t => t.name && t.price)
-                };
-            } else if (formData.category === 'craft') {
-                durationType = 'item';
-                pricingData = {
-                    craftItems: formData.craftItems.filter(c => c.name && c.price)
-                };
-            }
-
-            // Prepare the data to send
-            const listingData = {
-                title: formData.title,
-                description: formData.description,
-                category: formData.category,
-                subCategory: formData.subCategory,
-                price: priceValue, // This is the main price
-                location: formData.location,
-                imageUrl: imageUrl,
-                amenities: formData.amenities.filter(a => a.trim() !== ''),
-                capacity: formData.capacity ? parseInt(formData.capacity) : null,
-                available: formData.available,
-                providerId: userData.uid,
-                providerName: userData.name,
-                durationType: durationType,
-                ...pricingData,
-                // Also store roomTypes directly for easy access
-                roomTypes: formData.category === 'lodging' ? formData.roomTypes.filter(r => r.name && r.price) : [],
-                menuItems: formData.category === 'food' ? formData.menuItems.filter(m => m.name && m.price) : [],
-                tourTypes: formData.category === 'guide' ? formData.tourTypes.filter(t => t.name && t.price) : [],
-                craftItems: formData.category === 'craft' ? formData.craftItems.filter(c => c.name && c.price) : []
+    setLoading(true);
+    
+    try {
+        let imageUrl = null;
+        if (formData.imagePreview) {
+            imageUrl = formData.imagePreview;
+        } else {
+            const placeholderImages = {
+                lodging: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400&h=300&fit=crop',
+                guide: 'https://images.unsplash.com/photo-1585409677983-0f6c41ca9c3b?w=400&h=300&fit=crop',
+                food: 'https://images.unsplash.com/photo-1552566626-52f8b828add9?w=400&h=300&fit=crop',
+                craft: 'https://images.unsplash.com/photo-1565608434237-ff63d6f4a633?w=400&h=300&fit=crop'
             };
-
-            console.log('Creating listing with data:', listingData);
-
-            const result = await createListing(listingData);
-
-            if (result.success) {
-                setToast({ message: '✅ Listing created successfully!', type: 'success' });
-                // Reset form
-                setFormData({
-                    title: '',
-                    description: '',
-                    category: 'lodging',
-                    subCategory: '',
-                    price: '',
-                    location: '',
-                    imageFile: null,
-                    imagePreview: null,
-                    amenities: [],
-                    capacity: '',
-                    available: true,
-                    roomTypes: [{ name: 'Standard', price: '', capacity: '' }],
-                    menuItems: [{ name: '', price: '', description: '' }],
-                    tourTypes: [{ name: '', price: '', duration: '', maxPeople: '' }],
-                    craftItems: [{ name: '', price: '', description: '' }]
-                });
-                document.getElementById('image-upload').value = '';
-                
-                if (onListingCreated) {
-                    onListingCreated();
-                }
-            } else {
-                setToast({ message: result.error || 'Failed to create listing', type: 'error' });
-            }
-        } catch (error) {
-            console.error('Error creating listing:', error);
-            setToast({ message: 'An error occurred. Please try again.', type: 'error' });
+            imageUrl = placeholderImages[formData.category] || placeholderImages.lodging;
         }
-        setLoading(false);
-    };
+
+        // Prepare the data to send - ENSURE PRICE IS INCLUDED
+        const listingData = {
+            title: formData.title,
+            description: formData.description,
+            category: formData.category,
+            subCategory: formData.subCategory,
+            price: priceValue, // This is the critical field
+            location: formData.location,
+            imageUrl: imageUrl,
+            amenities: formData.amenities.filter(a => a.trim() !== ''),
+            capacity: formData.capacity ? parseInt(formData.capacity) : null,
+            available: formData.available,
+            providerId: userData.uid,
+            providerName: userData.name,
+            durationType: durationType,
+            ...pricingData
+        };
+
+        console.log('Creating listing with price:', priceValue);
+        console.log('Full listing data:', listingData);
+
+        const result = await createListing(listingData);
+
+        if (result.success) {
+            setToast({ message: '✅ Listing created successfully!', type: 'success' });
+            // Reset form
+            setFormData({
+                title: '',
+                description: '',
+                category: 'lodging',
+                subCategory: '',
+                price: '',
+                location: '',
+                imageFile: null,
+                imagePreview: null,
+                amenities: [],
+                capacity: '',
+                available: true,
+                roomTypes: [{ name: 'Standard', price: '', capacity: '' }],
+                menuItems: [{ name: '', price: '', description: '' }],
+                tourTypes: [{ name: '', price: '', duration: '', maxPeople: '' }],
+                craftItems: [{ name: '', price: '', description: '' }]
+            });
+            document.getElementById('image-upload').value = '';
+            
+            if (onListingCreated) {
+                onListingCreated();
+            }
+        } else {
+            setToast({ message: result.error || 'Failed to create listing', type: 'error' });
+        }
+    } catch (error) {
+        console.error('Error creating listing:', error);
+        setToast({ message: 'An error occurred. Please try again.', type: 'error' });
+    }
+    setLoading(false);
+};
 
     const renderPricingSection = () => {
         switch (formData.category) {
