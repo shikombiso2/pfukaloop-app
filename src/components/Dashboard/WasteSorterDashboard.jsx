@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { getWasteLogs, createWasteLog, getListings } from '../../services/firebaseServices';
+import { getWasteLogs, createWasteLog } from '../../services/firebaseServices';
 import Toast from '../Common/Toast';
 import './Dashboard.css';
 
@@ -37,26 +37,47 @@ function WasteSorterDashboard({ user }) {
         
         setLoading(true);
         try {
+            // Get waste logs for this user
             const result = await getWasteLogs({ sorterId: userData.uid });
+            
             if (result.success) {
                 setLogs(result.data || []);
                 calculateStats(result.data || []);
+                setToast(null);
             } else {
                 console.error('Failed to load waste logs:', result.error);
-                setToast({ message: 'Failed to load waste logs', type: 'error' });
+                // Don't show error toast for empty logs
+                if (result.error !== 'No waste logs found') {
+                    setToast({ message: 'Failed to load waste logs: ' + result.error, type: 'error' });
+                }
                 setLogs([]);
+                setStats({
+                    total: 0,
+                    byType: {},
+                    thisWeek: 0,
+                    thisMonth: 0
+                });
             }
         } catch (error) {
             console.error('Error loading waste logs:', error);
-            setToast({ message: 'Error loading waste logs', type: 'error' });
             setLogs([]);
+            setStats({
+                total: 0,
+                byType: {},
+                thisWeek: 0,
+                thisMonth: 0
+            });
         }
         setLoading(false);
     }, [userData]);
 
     useEffect(() => {
-        loadLogs();
-    }, [loadLogs]);
+        if (userData) {
+            loadLogs();
+        } else {
+            setLoading(false);
+        }
+    }, [userData, loadLogs]);
 
     const calculateStats = (data) => {
         const byType = {};
@@ -150,6 +171,24 @@ function WasteSorterDashboard({ user }) {
         };
         return icons[destination] || '📍';
     };
+
+    // If user is not a waste sorter, show message
+    if (userData && userData.role !== 'waste_sorter') {
+        return (
+            <div className="dashboard-container">
+                <div className="dashboard-header">
+                    <h2>⚠️ Access Denied</h2>
+                    <span className="role-badge">WASTE SORTER ONLY</span>
+                </div>
+                <div style={{ padding: '40px', textAlign: 'center' }}>
+                    <p>This dashboard is only for Waste Sorters.</p>
+                    <p style={{ color: '#95a5a6', marginTop: '8px' }}>
+                        Please contact an administrator if you believe this is an error.
+                    </p>
+                </div>
+            </div>
+        );
+    }
 
     if (loading && logs.length === 0) {
         return <div className="loading">Loading waste logs...</div>;

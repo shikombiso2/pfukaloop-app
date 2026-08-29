@@ -473,7 +473,6 @@ export const createWasteLog = async (data) => {
         return { success: false, error: error.message };
     }
 };
-
 export const getUsers = async () => {
     try {
         const querySnapshot = await getDocs(collection(db, 'users'));
@@ -499,14 +498,27 @@ export const getWasteLogs = async (filters = {}) => {
             constraints.push(where('wasteType', '==', filters.wasteType));
         }
         
-        constraints.push(orderBy('createdAt', 'desc'));
+        // If no constraints, get all logs
+        let q;
+        if (constraints.length === 0) {
+            q = collection(db, 'wasteLogs');
+        } else {
+            q = query(collection(db, 'wasteLogs'), ...constraints);
+        }
         
-        const q = query(collection(db, 'wasteLogs'), ...constraints);
         const querySnapshot = await getDocs(q);
         const logs = [];
         querySnapshot.forEach((doc) => {
             logs.push({ id: doc.id, ...doc.data() });
         });
+        
+        // Sort by createdAt descending
+        logs.sort((a, b) => {
+            const dateA = a.createdAt?.toDate?.() || new Date(a.createdAt || 0);
+            const dateB = b.createdAt?.toDate?.() || new Date(b.createdAt || 0);
+            return dateB - dateA;
+        });
+        
         return { success: true, data: logs };
     } catch (error) {
         console.error('Error getting waste logs:', error);
